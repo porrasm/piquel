@@ -4,7 +4,7 @@ import { parsePublicSchema, publicSchemaValidator } from "./table-parser";
 import { generateSchemaTypescript } from "./schema.template";
 import fs from "fs";
 import { execSync } from "child_process";
-import type { Pool } from "../external-types";
+import type { PoolLike } from "../external-types";
 import { sql } from "../sql/sql-builder";
 import type { SchemaGenerationConfig } from "../types";
 
@@ -40,7 +40,7 @@ const runPrettierOnSchemaFile = async (outputTypescriptFile: string) => {
 };
 
 type SchemaGenerationParams = {
-  pool: Pool;
+  pool: PoolLike;
   outputTypescriptFile: string;
   config?: Partial<SchemaGenerationConfig>;
 };

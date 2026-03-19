@@ -1,9 +1,9 @@
-import { type PoolClient } from "./external-types";
+import { type PoolClientLike } from "./external-types";
 import type { ClientMetadata, SQLDefinition } from "./types";
 import sqlTemplateStrings from "sql-template-strings";
 
 export const runUsingTransaction = async <T>(
-  client: PoolClient,
+  client: PoolClientLike,
   fn: () => Promise<T>
 ) => {
   try {
@@ -20,7 +20,7 @@ export const runUsingTransaction = async <T>(
 };
 
 type RunSqlParams = {
-  client: PoolClient;
+  client: PoolClientLike;
   sql: SQLDefinition;
   clientMetadata: ClientMetadata;
 };

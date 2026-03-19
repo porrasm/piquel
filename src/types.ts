@@ -4,7 +4,7 @@ import type {
   sqlDefinitionSchema,
   sqlParameterSchema,
 } from "./sql/sql-schema";
-import type { Pool } from "./external-types";
+import type { PoolLike } from "./external-types";
 
 export type TemplateQuery = z.infer<typeof templateQuerySchema>;
 export type SQLDefinition = z.infer<typeof sqlDefinitionSchema>;
@@ -47,7 +47,7 @@ export type DBClient = {
 };
 
 export type DbConfig = {
-  pool: Pool;
+  pool: PoolLike;
   /** If true, the database query result will be validated using zod.
    * For production, this can be disabled to improve performance. */
   useZodValidation: boolean;
