@@ -1,0 +1,27 @@
+{
+  "name": "pg-db-lib",
+  "version": "0.1.0",
+  "description": "Type-safe PostgreSQL database library with schema generation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "pg-db-lib": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "pg": ">=8",
+    "zod": ">=3"
+  },
+  "dependencies": {
+    "sql-template-strings": "^2.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8",
+    "typescript": "^5"
+  }
+}
