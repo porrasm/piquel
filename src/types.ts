@@ -1,10 +1,10 @@
-import type { Pool } from "pg";
 import { z } from "zod";
 import type {
   templateQuerySchema,
   sqlDefinitionSchema,
   sqlParameterSchema,
 } from "./sql/sql-schema";
+import type { Pool } from "./external-types";
 
 export type TemplateQuery = z.infer<typeof templateQuerySchema>;
 export type SQLDefinition = z.infer<typeof sqlDefinitionSchema>;

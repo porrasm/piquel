@@ -1,4 +1,4 @@
-import { type PoolClient } from "pg";
+import { type PoolClient } from "./external-types";
 import type { ClientMetadata, SQLDefinition } from "./types";
 import sqlTemplateStrings from "sql-template-strings";
 

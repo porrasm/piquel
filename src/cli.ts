@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import pg from "pg";
 import { runSchemaGeneration } from "./schema-generation/schema-generator";
 
 const USAGE = `
@@ -55,8 +56,10 @@ const parseArgs = (argv: string[]) => {
 const main = async () => {
   const { connectionString, output, schemaName } = parseArgs(process.argv);
 
+  const pool = new pg.Pool({ connectionString });
+
   await runSchemaGeneration({
-    dbConnectionString: connectionString,
+    pool,
     outputTypescriptFile: output,
     config: schemaName ? { schemaExportName: schemaName } : undefined,
   });

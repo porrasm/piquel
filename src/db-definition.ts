@@ -1,10 +1,10 @@
 import { runSqlStatement, runUsingTransaction } from "./query-logic";
 import { prepareOperation } from "./operations";
 import type { ClientMetadata, DBClient, DbConfig } from "./types";
-import pg from "pg";
+import type { Pool, PoolClient } from "./external-types";
 
 type QueryParams = {
-  getClient: () => Promise<pg.PoolClient>;
+  getClient: () => Promise<PoolClient>;
   useZodValidation: boolean;
   clientMetadata: ClientMetadata;
 };
@@ -115,7 +115,7 @@ const createTransact =
 export type Database = {
   client: DBClient;
   transact: ReturnType<typeof createTransact>;
-  pool: pg.Pool;
+  pool: Pool;
 };
 
 export const createDatabase = (config: DbConfig): Database => {

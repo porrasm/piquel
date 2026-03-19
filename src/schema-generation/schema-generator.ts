@@ -1,12 +1,12 @@
-import { createDatabase, Database } from "../db-definition";
+import { createDatabase, type Database } from "../db-definition";
 import { z } from "zod";
 import { parsePublicSchema, publicSchemaValidator } from "./table-parser";
 import { generateSchemaTypescript } from "./schema.template";
 import fs from "fs";
 import { execSync } from "child_process";
-import pg from "pg";
+import type { Pool } from "../external-types";
 import { sql } from "../sql/sql-builder";
-import { SchemaGenerationConfig } from "../types";
+import type { SchemaGenerationConfig } from "../types";
 
 const DEFAULT_SCHEMA_GENERATION_CONFIG: SchemaGenerationConfig = {
   schemaExportName: "schema",
@@ -40,7 +40,7 @@ const runPrettierOnSchemaFile = async (outputTypescriptFile: string) => {
 };
 
 type SchemaGenerationParams = {
-  dbConnectionString: string;
+  pool: Pool;
   outputTypescriptFile: string;
   config?: Partial<SchemaGenerationConfig>;
 };
@@ -58,9 +58,7 @@ export const runSchemaGeneration = async (params: SchemaGenerationParams) => {
   const finalConfig = { ...DEFAULT_SCHEMA_GENERATION_CONFIG, ...params.config };
 
   const db = createDatabase({
-    pool: new pg.Pool({
-      connectionString: params.dbConnectionString,
-    }),
+    pool: params.pool,
     useZodValidation: true,
   });
 
@@ -77,8 +75,8 @@ export const runSchemaGeneration = async (params: SchemaGenerationParams) => {
         tc.table_name,
         kcu.column_name,
         ccu.table_name AS foreign_table_name,
-        ccu.column_name AS foreign_column_name 
-      FROM information_schema.table_constraints AS tc 
+        ccu.column_name AS foreign_column_name
+      FROM information_schema.table_constraints AS tc
       JOIN information_schema.key_column_usage AS kcu
         ON tc.constraint_name = kcu.constraint_name
            AND tc.table_schema = kcu.table_schema
