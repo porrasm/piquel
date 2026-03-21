@@ -6,15 +6,7 @@ import fs from "fs";
 import { execSync } from "child_process";
 import type { PoolLike } from "../external-types";
 import { sql } from "../sql/sql-builder";
-import type { SchemaGenerationConfig } from "../types";
-
-const DEFAULT_SCHEMA_GENERATION_CONFIG: SchemaGenerationConfig = {
-  schemaExportName: "schema",
-  primaryKeySuffix: "_id",
-  tableTypeSuffix: "Type",
-  tableNameTransform: (tableName: string) => tableName,
-  columnNameTransform: (columnName: string) => columnName,
-};
+import { SchemaGenerationConfig, setConfig } from "./schema-generation-config";
 
 const foreignKeyValidator = z.object({
   table_name: z.string(),
@@ -55,7 +47,7 @@ const dbHealthCheck = async (db: Database) => {
 };
 
 export const runSchemaGeneration = async (params: SchemaGenerationParams) => {
-  const finalConfig = { ...DEFAULT_SCHEMA_GENERATION_CONFIG, ...params.config };
+  setConfig(params.config ?? {});
 
   const db = createDatabase({
     pool: params.pool,
@@ -87,8 +79,8 @@ export const runSchemaGeneration = async (params: SchemaGenerationParams) => {
     foreignKeyValidator,
   );
 
-  const tables = parsePublicSchema(rows, foreignKeys, finalConfig);
-  const schemaDefinition = generateSchemaTypescript(tables, finalConfig);
+  const tables = parsePublicSchema(rows, foreignKeys);
+  const schemaDefinition = generateSchemaTypescript(tables);
 
   fs.writeFileSync(params.outputTypescriptFile, schemaDefinition);
   await runPrettierOnSchemaFile(params.outputTypescriptFile);

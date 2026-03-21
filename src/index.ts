@@ -13,8 +13,8 @@ export type {
   OperationResult,
   SQLDefinition,
   DBValidator,
-  SchemaGenerationConfig,
 } from "./types";
 
 // Schema generation
+export type { SchemaGenerationConfig } from "./schema-generation/schema-generation-config";
 export { runSchemaGeneration } from "./schema-generation/schema-generator";

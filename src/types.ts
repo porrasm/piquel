@@ -53,10 +53,3 @@ export type DbConfig = {
   useZodValidation: boolean;
 };
 
-export type SchemaGenerationConfig = {
-  schemaExportName: string;
-  primaryKeySuffix: string;
-  tableTypeSuffix: string;
-  tableNameTransform: (tableName: string) => string;
-  columnNameTransform: (columnName: string) => string;
-};

@@ -1,22 +1,6 @@
 import { z } from "zod";
 import type { ForeignKey } from "./schema-generator";
-import { SchemaGenerationConfig } from "../types";
-import { ZOD_ARRAY_TYPE_MAP, ZOD_TYPE_MAP } from "./psql-zod-types";
-
-const ARRAY_DATA_TYPE = "ARRAY";
-
-const IGNORE_TABLES = new Set([
-  "pg_stat_statements",
-  "pg_stat_statements_info",
-  "pgmigrations",
-  "pg_stat_activity",
-  "pg_stat_bgwriter",
-  "pg_stat_database",
-  "pg_stat_database_conflicts",
-  "migrations",
-]);
-
-const ZOD_NULLABLE_SUFFIX = ".nullable()";
+import { config } from "./schema-generation-config";
 
 export type ColumnToGenerate = {
   name: string;
@@ -43,10 +27,10 @@ export type PublicSchemaRow = z.infer<typeof publicSchemaValidator>;
 
 const getZodType = (row: PublicSchemaRow): string | null => {
   // Array type information does not contain the element type
-  if (row.data_type === ARRAY_DATA_TYPE) {
-    return ZOD_ARRAY_TYPE_MAP[row.udt_name] ?? null;
+  if (row.data_type === config().arrayDataTypeName) {
+    return config().zodArrayTypeMap[row.udt_name] ?? null;
   }
-  return ZOD_TYPE_MAP[row.data_type] ?? null;
+  return config().zodTypeMap[row.data_type] ?? null;
 };
 
 const parseColumn = (row: PublicSchemaRow): ColumnToGenerate => {
@@ -57,7 +41,7 @@ const parseColumn = (row: PublicSchemaRow): ColumnToGenerate => {
     );
   }
 
-  const suffix = row.is_nullable === "YES" ? ZOD_NULLABLE_SUFFIX : "";
+  const suffix = row.is_nullable === "YES" ? config().zodNullableSuffix : "";
 
   return {
     name: row.column_name,
@@ -70,7 +54,6 @@ const parseColumn = (row: PublicSchemaRow): ColumnToGenerate => {
 export const parsePublicSchema = (
   rows: PublicSchemaRow[],
   foreignKeys: ForeignKey[],
-  config: SchemaGenerationConfig,
 ): TableToGenerate[] => {
   const tableIds = rows
     .filter((row) => row.column_name === `${row.table_name}_id`)
@@ -79,7 +62,7 @@ export const parsePublicSchema = (
   const tables = new Map<string, TableToGenerate>();
 
   rows.forEach((row) => {
-    if (IGNORE_TABLES.has(row.table_name)) {
+    if (config().ignoredTables.has(row.table_name)) {
       return;
     }
 
@@ -94,14 +77,15 @@ export const parsePublicSchema = (
         foreignKey.column_name === row.column_name,
     );
     if (foreignKey && tableIds.includes(foreignKey.foreign_column_name)) {
-      const transformedForeignKeyTableName = config.tableNameTransform(
+      const transformedForeignKeyTableName = config().tableNameTransform(
         foreignKey.foreign_table_name,
       );
-      const suffix = row.is_nullable === "YES" ? ZOD_NULLABLE_SUFFIX : "";
+      const suffix =
+        row.is_nullable === "YES" ? config().zodNullableSuffix : "";
       table.columns.push({
         name: row.column_name,
-        zodType: `${transformedForeignKeyTableName}${config.primaryKeySuffix}Schema${suffix}`,
-        zodTypeWithoutNullable: `${transformedForeignKeyTableName}${config.primaryKeySuffix}Schema`,
+        zodType: `${transformedForeignKeyTableName}${config().primaryKeySuffix}Schema${suffix}`,
+        zodTypeWithoutNullable: `${transformedForeignKeyTableName}${config().primaryKeySuffix}Schema`,
         // Todo: recognize primary key automatically
         isPrimaryKey: row.column_name === `${row.table_name}_id`,
       });
