@@ -7,10 +7,13 @@
   "bin": {
     "pg-db-lib": "dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "sql-template-strings": ">=2.2.2",
@@ -20,9 +23,12 @@
     "pg": ">=8"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20",
     "@types/pg": "^8",
+    "eslint": "^10.0.3",
     "pg": "^8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.57.0"
   }
 }
