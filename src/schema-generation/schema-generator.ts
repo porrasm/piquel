@@ -1,11 +1,11 @@
-import { createDatabase, type Database } from "../db-definition";
+import { createDatabase, type Database } from "../database/db-definition";
 import { z } from "zod";
 import { parsePublicSchema, publicSchemaValidator } from "./table-parser";
 import { generateSchemaTypescript } from "./schema.template";
 import fs from "fs";
 import { execSync } from "child_process";
-import type { PoolLike } from "../external-types";
-import { sql } from "../sql/sql-builder";
+import type { PoolLike } from "../database/external-types";
+import { sql } from "../database/sql/sql-builder";
 import { SchemaGenerationConfig, setConfig } from "./schema-generation-config";
 
 const foreignKeyValidator = z.object({
