@@ -113,6 +113,53 @@ describe("runSchemaGeneration", () => {
     }
   });
 
+  it("overrides jsonb column type with overrideZodType", async () => {
+    const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
+
+    try {
+      await runSchemaGeneration({
+        pool: ctx.pool,
+        outputTypescriptFile: outputFile,
+        config: {
+          overrideZodType: (col) =>
+            col.data_type === "jsonb" ? "z.record(z.string(), z.unknown())" : null,
+        },
+      });
+      const content = fs.readFileSync(outputFile, "utf8");
+      // The setting table has a jsonb "value" column — it should use the override
+      expect(content).toContain("z.record(z.string(), z.unknown())");
+      // The default jsonb mapping (z.object({})) should not appear
+      expect(content).not.toContain("z.object({})");
+    } finally {
+      if (fs.existsSync(outputFile)) {
+        fs.unlinkSync(outputFile);
+      }
+    }
+  });
+
+  it("overrides specific jsonb column by table and column name", async () => {
+    const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
+
+    try {
+      await runSchemaGeneration({
+        pool: ctx.pool,
+        outputTypescriptFile: outputFile,
+        config: {
+          overrideZodType: (col) =>
+            col.table_name === "setting" && col.column_name === "value"
+              ? "z.object({ theme: z.string() })"
+              : null,
+        },
+      });
+      const content = fs.readFileSync(outputFile, "utf8");
+      expect(content).toContain("z.object({ theme: z.string() })");
+    } finally {
+      if (fs.existsSync(outputFile)) {
+        fs.unlinkSync(outputFile);
+      }
+    }
+  });
+
   it("generates branded id schemas for primary key columns", async () => {
     const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
 

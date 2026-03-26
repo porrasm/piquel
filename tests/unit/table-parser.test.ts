@@ -373,6 +373,112 @@ describe("parsePublicSchema", () => {
     });
   });
 
+  describe("overrideZodType", () => {
+    it("uses the override when overrideZodType returns a string", () => {
+      setConfig({
+        overrideZodType: (col) =>
+          col.data_type === "jsonb" ? "MyJsonSchema" : null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "setting",
+          column_name: "value",
+          data_type: "jsonb",
+          udt_name: "jsonb",
+          is_nullable: "NO",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("MyJsonSchema");
+      expect(col.zodTypeWithoutNullable).toBe("MyJsonSchema");
+    });
+
+    it("appends nullable suffix to overridden type when column is nullable", () => {
+      setConfig({
+        overrideZodType: (col) =>
+          col.data_type === "jsonb" ? "MyJsonSchema" : null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "setting",
+          column_name: "metadata",
+          data_type: "jsonb",
+          udt_name: "jsonb",
+          is_nullable: "YES",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("MyJsonSchema.nullable()");
+      expect(col.zodTypeWithoutNullable).toBe("MyJsonSchema");
+    });
+
+    it("falls back to default mapping when overrideZodType returns null", () => {
+      setConfig({
+        overrideZodType: () => null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "name",
+          data_type: "text",
+          udt_name: "text",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("z.string()");
+    });
+
+    it("can override based on table and column name", () => {
+      setConfig({
+        overrideZodType: (col) =>
+          col.table_name === "setting" && col.column_name === "value"
+            ? "SettingValueSchema"
+            : null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "setting",
+          column_name: "value",
+          data_type: "jsonb",
+          udt_name: "jsonb",
+        }),
+        makeRow({
+          table_name: "other",
+          column_name: "value",
+          data_type: "jsonb",
+          udt_name: "jsonb",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], []);
+      const settingCol = tables.find((t) => t.name === "setting")?.columns[0];
+      const otherCol = tables.find((t) => t.name === "other")?.columns[0];
+      expect(settingCol?.zodType).toBe("SettingValueSchema");
+      expect(otherCol?.zodType).toBe("z.object({})");
+    });
+
+    it("takes precedence over unknown type handling", () => {
+      setConfig({
+        allowUnknownDataTypes: true,
+        overrideZodType: (col) =>
+          col.data_type === "custom_type" ? "CustomSchema" : null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "col",
+          data_type: "custom_type",
+          udt_name: "custom",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("CustomSchema");
+    });
+  });
+
   describe("array types", () => {
     it("maps ARRAY/udt_name using zodArrayTypeMap", () => {
       const rows: PublicSchemaRow[] = [

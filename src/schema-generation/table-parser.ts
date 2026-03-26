@@ -37,7 +37,7 @@ const parseColumn = (
   row: PublicSchemaRow,
   isPrimaryKey: boolean,
 ): ColumnToGenerate => {
-  const zodType = getZodType(row);
+  const zodType = config().overrideZodType(row) ?? getZodType(row);
 
   if (!zodType && config().allowUnknownDataTypes) {
     return {

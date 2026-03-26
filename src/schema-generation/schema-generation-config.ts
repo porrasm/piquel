@@ -1,3 +1,5 @@
+import type { PublicSchemaRow } from "./table-parser";
+
 export const UNKNOWN_DATA_TYPE_ZOD_TYPE = "z.any()";
 
 export interface SchemaGenerationConfig {
@@ -7,6 +9,7 @@ export interface SchemaGenerationConfig {
   zodNullableSuffix: string;
   arrayDataTypeName: string;
   allowUnknownDataTypes: boolean;
+  overrideZodType: (col: PublicSchemaRow) => string | null;
   tableNameTransform: (tableName: string) => string;
   columnNameTransform: (columnName: string) => string;
   getIgnoredTables: (ignoredTables: Set<string>) => Set<string>;
@@ -86,6 +89,7 @@ const DEFAULT_SCHEMA_GENERATION_CONFIG: SchemaGenerationConfig = {
   zodNullableSuffix: ".nullable()",
   arrayDataTypeName: "ARRAY",
   allowUnknownDataTypes: false,
+  overrideZodType: (_: PublicSchemaRow) => null,
   tableNameTransform: (tableName: string) => tableName,
   columnNameTransform: (columnName: string) => columnName,
   getIgnoredTables: (ignoredTables: Set<string>) => ignoredTables,
