@@ -113,7 +113,7 @@ describe("runSchemaGeneration", () => {
     }
   });
 
-  it("generates branded id schemas for tables with _id primary keys", async () => {
+  it("generates branded id schemas for primary key columns", async () => {
     const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
 
     try {
@@ -122,7 +122,6 @@ describe("runSchemaGeneration", () => {
         outputTypescriptFile: outputFile,
       });
       const content = fs.readFileSync(outputFile, "utf8");
-      // category_id is a PK (category + _id = category_id) → branded schema generated
       expect(content).toContain("category_idSchema");
     } finally {
       if (fs.existsSync(outputFile)) {

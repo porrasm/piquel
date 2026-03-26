@@ -65,9 +65,7 @@ const generateRowTypeExports = (tables: TableToGenerate[]): string => {
 };
 
 const generateTableId = (table: TableToGenerate): string => {
-  const idColumn = table.columns.find(
-    (column) => column.name === `${table.name}_id`,
-  );
+  const idColumn = table.columns.find((column) => column.isPrimaryKey);
   if (!idColumn) {
     return "";
   }

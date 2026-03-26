@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { parsePublicSchema } from "../../src/schema-generation/table-parser";
 import { setConfig } from "../../src/schema-generation/schema-generation-config";
 import type { PublicSchemaRow } from "../../src/schema-generation/table-parser";
+import type { PrimaryKey } from "../../src/schema-generation/schema-generator";
 
 beforeEach(() => {
   setConfig({});
@@ -10,7 +11,6 @@ beforeEach(() => {
 function makeRow(overrides: Partial<PublicSchemaRow>): PublicSchemaRow {
   return {
     table_schema: "public",
-    // Use singular "user" so that "user_id" matches the PK convention: ${table_name}_id
     table_name: "user",
     column_name: "user_id",
     data_type: "integer",
@@ -18,6 +18,10 @@ function makeRow(overrides: Partial<PublicSchemaRow>): PublicSchemaRow {
     udt_name: "int4",
     ...overrides,
   };
+}
+
+function pk(table_name: string, column_name: string): PrimaryKey {
+  return { table_name, column_name };
 }
 
 describe("parsePublicSchema", () => {
@@ -36,7 +40,7 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("user", "user_id")]);
       expect(tables).toHaveLength(1);
       expect(tables[0]?.name).toBe("user");
       expect(tables[0]?.columns).toHaveLength(2);
@@ -55,7 +59,7 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("zebra", "zebra_id"), pk("alpha", "alpha_id")]);
       expect(tables[0]?.name).toBe("alpha");
       expect(tables[1]?.name).toBe("zebra");
     });
@@ -80,7 +84,7 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("user", "user_id")]);
       const names = tables[0]?.columns.map((c) => c.name);
       expect(names).toEqual(["active", "name", "user_id"]);
     });
@@ -97,7 +101,7 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodType).toMatch(/\.nullable\(\)$/);
     });
@@ -112,7 +116,7 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodType).not.toMatch(/\.nullable\(\)/);
     });
@@ -127,15 +131,14 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodTypeWithoutNullable).not.toMatch(/\.nullable\(\)/);
     });
   });
 
   describe("primary key detection", () => {
-    it("marks column as primary key when column_name === table_name + _id", () => {
-      // table_name "user" → PK column must be "user_id"
+    it("marks column as primary key when it appears in primaryKeys", () => {
       const rows: PublicSchemaRow[] = [
         makeRow({
           table_name: "user",
@@ -143,7 +146,7 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("user", "user_id")]);
       expect(tables[0]?.columns[0]?.isPrimaryKey).toBe(true);
     });
 
@@ -156,7 +159,7 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("user", "user_id")]);
       expect(tables[0]?.columns[0]?.isPrimaryKey).toBe(false);
     });
   });
@@ -175,7 +178,7 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("migrations", "migrations_id"), pk("user", "user_id")]);
       const tableNames = tables.map((t) => t.name);
       expect(tableNames).not.toContain("migrations");
       expect(tableNames).toContain("user");
@@ -198,7 +201,7 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("custom_ignored", "custom_ignored_id"), pk("user", "user_id")]);
       const tableNames = tables.map((t) => t.name);
       expect(tableNames).not.toContain("custom_ignored");
     });
@@ -213,7 +216,7 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      expect(() => parsePublicSchema(rows, [])).toThrow(/Unknown data type/);
+      expect(() => parsePublicSchema(rows, [], [])).toThrow(/Unknown data type/);
     });
   });
 
@@ -227,7 +230,7 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      expect(() => parsePublicSchema(rows, [])).not.toThrow();
+      expect(() => parsePublicSchema(rows, [], [])).not.toThrow();
     });
 
     it("uses z.any() for unknown data types when allowUnknownDataTypes is true", () => {
@@ -240,7 +243,7 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.any()");
       expect(col.zodTypeWithoutNullable).toBe("z.any()");
@@ -256,7 +259,7 @@ describe("parsePublicSchema", () => {
           udt_name: "_unknown_type",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.any()");
     });
@@ -271,7 +274,7 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.string()");
     });
@@ -287,7 +290,7 @@ describe("parsePublicSchema", () => {
           is_nullable: "YES",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       // unknown types always get z.any() regardless of nullability
       expect(col.zodType).toBe("z.any()");
@@ -303,7 +306,7 @@ describe("parsePublicSchema", () => {
           udt_name: "custom_id",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], []);
       const col = tables[0]?.columns[0];
       expect(col.isPrimaryKey).toBe(false);
     });
@@ -311,8 +314,6 @@ describe("parsePublicSchema", () => {
 
   describe("foreign key resolution", () => {
     it("uses branded schema reference for FK columns when foreign column is a known PK", () => {
-      // "user" table has "user_id" PK → detected because "user_id" === `${"user"}_id`
-      // "post" table has "post_id" PK and "user_id" as FK referencing user.user_id
       const rows: PublicSchemaRow[] = [
         makeRow({
           table_name: "user",
@@ -338,7 +339,7 @@ describe("parsePublicSchema", () => {
           foreign_column_name: "user_id",
         },
       ];
-      const tables = parsePublicSchema(rows, foreignKeys);
+      const tables = parsePublicSchema(rows, foreignKeys, [pk("user", "user_id"), pk("post", "post_id")]);
       const post = tables.find((t) => t.name === "post");
       const fkCol = post?.columns.find((c) => c.name === "user_id");
       expect(fkCol?.zodType).toContain("user_idSchema");
@@ -362,20 +363,18 @@ describe("parsePublicSchema", () => {
           table_name: "post",
           column_name: "author_ref",
           foreign_table_name: "user",
-          foreign_column_name: "user_id", // user_id is not in rows (no user table), so falls back
+          foreign_column_name: "email", // email is not a PK, so falls back
         },
       ];
-      const tables = parsePublicSchema(rows, foreignKeys);
+      const tables = parsePublicSchema(rows, foreignKeys, [pk("post", "post_id")]);
       const post = tables.find((t) => t.name === "post");
       const col = post?.columns.find((c) => c.name === "author_ref");
-      // foreign_column_name "user_id" is not in tableIds (no user table in rows), so falls back
       expect(col?.zodType).toBe("z.number().int()");
     });
   });
 
   describe("array types", () => {
     it("maps ARRAY/udt_name using zodArrayTypeMap", () => {
-      // "t" table: t_id → PK (t + _id = t_id ✓), tags → ARRAY/_text
       const rows: PublicSchemaRow[] = [
         makeRow({ table_name: "t", column_name: "t_id", data_type: "integer" }),
         makeRow({
@@ -386,7 +385,7 @@ describe("parsePublicSchema", () => {
           is_nullable: "NO",
         }),
       ];
-      const tables = parsePublicSchema(rows, []);
+      const tables = parsePublicSchema(rows, [], [pk("t", "t_id")]);
       const col = tables[0]?.columns.find((c) => c.name === "tags");
       expect(col?.zodType).toBe("z.array(z.string())");
     });

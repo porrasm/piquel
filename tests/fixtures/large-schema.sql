@@ -1,5 +1,4 @@
 -- Covers all DEFAULT_ZOD_TYPE_MAP and DEFAULT_ZOD_ARRAY_TYPE_MAP types.
--- Table names are singular so that ${table_name}_id PK detection works.
 
 CREATE TABLE category (
   category_id integer PRIMARY KEY,

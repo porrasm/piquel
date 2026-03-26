@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ForeignKey } from "./schema-generator";
+import type { ForeignKey, PrimaryKey } from "./schema-generator";
 import { config, UNKNOWN_DATA_TYPE_ZOD_TYPE } from "./schema-generation-config";
 
 export interface ColumnToGenerate {
@@ -33,7 +33,10 @@ const getZodType = (row: PublicSchemaRow): string | null => {
   return config().zodTypeMap[row.data_type] ?? null;
 };
 
-const parseColumn = (row: PublicSchemaRow): ColumnToGenerate => {
+const parseColumn = (
+  row: PublicSchemaRow,
+  isPrimaryKey: boolean,
+): ColumnToGenerate => {
   const zodType = getZodType(row);
 
   if (!zodType && config().allowUnknownDataTypes) {
@@ -57,17 +60,24 @@ const parseColumn = (row: PublicSchemaRow): ColumnToGenerate => {
     name: row.column_name,
     zodType: `${zodType}${suffix}`,
     zodTypeWithoutNullable: zodType,
-    isPrimaryKey: row.column_name === `${row.table_name}_id`,
+    isPrimaryKey,
   };
 };
 
 export const parsePublicSchema = (
   rows: PublicSchemaRow[],
   foreignKeys: ForeignKey[],
+  primaryKeys: PrimaryKey[],
 ): TableToGenerate[] => {
-  const tableIds = rows
-    .filter((row) => row.column_name === `${row.table_name}_id`)
-    .map((row) => row.column_name);
+  const primaryKeySet = new Set(
+    primaryKeys.map((pk) => `${pk.table_name}.${pk.column_name}`),
+  );
+
+  const isPrimaryKey = (tableName: string, columnName: string): boolean =>
+    primaryKeySet.has(`${tableName}.${columnName}`);
+
+  const isForeignKeyToAPrimaryKey = (fk: ForeignKey): boolean =>
+    isPrimaryKey(fk.foreign_table_name, fk.foreign_column_name);
 
   const tables = new Map<string, TableToGenerate>();
 
@@ -86,7 +96,7 @@ export const parsePublicSchema = (
         foreignKey.table_name === row.table_name &&
         foreignKey.column_name === row.column_name,
     );
-    if (foreignKey && tableIds.includes(foreignKey.foreign_column_name)) {
+    if (foreignKey && isForeignKeyToAPrimaryKey(foreignKey)) {
       const transformedForeignKeyTableName = config().tableNameTransform(
         foreignKey.foreign_table_name,
       );
@@ -96,11 +106,12 @@ export const parsePublicSchema = (
         name: row.column_name,
         zodType: `${transformedForeignKeyTableName}${config().primaryKeySuffix}Schema${suffix}`,
         zodTypeWithoutNullable: `${transformedForeignKeyTableName}${config().primaryKeySuffix}Schema`,
-        // Todo: recognize primary key automatically
-        isPrimaryKey: row.column_name === `${row.table_name}_id`,
+        isPrimaryKey: isPrimaryKey(row.table_name, row.column_name),
       });
     } else {
-      table.columns.push(parseColumn(row));
+      table.columns.push(
+        parseColumn(row, isPrimaryKey(row.table_name, row.column_name)),
+      );
     }
 
     tables.set(row.table_name, table);

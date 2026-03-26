@@ -21,6 +21,13 @@ const foreignKeyValidator = z.object({
 
 export type ForeignKey = z.infer<typeof foreignKeyValidator>;
 
+const primaryKeyValidator = z.object({
+  table_name: z.string(),
+  column_name: z.string(),
+});
+
+export type PrimaryKey = z.infer<typeof primaryKeyValidator>;
+
 const runPrettierOnSchemaFile = (outputTypescriptFile: string): void => {
   try {
     console.log("Running prettier on generated schema file...");
@@ -85,7 +92,21 @@ export const runSchemaGeneration = async (
     foreignKeyValidator,
   );
 
-  const tables = parsePublicSchema(rows, foreignKeys);
+  const primaryKeys = await db.client.query(
+    sql`
+      SELECT
+        tc.table_name,
+        kcu.column_name
+      FROM information_schema.table_constraints AS tc
+      JOIN information_schema.key_column_usage AS kcu
+        ON tc.constraint_name = kcu.constraint_name
+           AND tc.table_schema = kcu.table_schema
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+      AND tc.table_schema='public'`,
+    primaryKeyValidator,
+  );
+
+  const tables = parsePublicSchema(rows, foreignKeys, primaryKeys);
   const schemaDefinition = generateSchemaTypescript(tables);
 
   fs.writeFileSync(params.outputTypescriptFile, schemaDefinition);
