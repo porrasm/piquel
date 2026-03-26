@@ -217,6 +217,98 @@ describe("parsePublicSchema", () => {
     });
   });
 
+  describe("allowUnknownDataTypes", () => {
+    it("does not throw for unknown data types when allowUnknownDataTypes is true", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          column_name: "weird",
+          data_type: "completely_unknown_type",
+          udt_name: "???",
+        }),
+      ];
+      expect(() => parsePublicSchema(rows, [])).not.toThrow();
+    });
+
+    it("uses z.any() for unknown data types when allowUnknownDataTypes is true", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "weird",
+          data_type: "completely_unknown_type",
+          udt_name: "???",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("z.any()");
+      expect(col.zodTypeWithoutNullable).toBe("z.any()");
+    });
+
+    it("uses z.any() for unknown array types when allowUnknownDataTypes is true", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "weird_array",
+          data_type: "ARRAY",
+          udt_name: "_unknown_type",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("z.any()");
+    });
+
+    it("still maps known data types normally when allowUnknownDataTypes is true", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "name",
+          data_type: "text",
+          udt_name: "text",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, []);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("z.string()");
+    });
+
+    it("ignores nullability for unknown data types", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "weird",
+          data_type: "completely_unknown_type",
+          udt_name: "???",
+          is_nullable: "YES",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, []);
+      const col = tables[0]?.columns[0];
+      // unknown types always get z.any() regardless of nullability
+      expect(col.zodType).toBe("z.any()");
+    });
+
+    it("does not mark unknown type columns as primary keys", () => {
+      setConfig({ allowUnknownDataTypes: true });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "t_id",
+          data_type: "custom_id_type",
+          udt_name: "custom_id",
+        }),
+      ];
+      const tables = parsePublicSchema(rows, []);
+      const col = tables[0]?.columns[0];
+      expect(col.isPrimaryKey).toBe(false);
+    });
+  });
+
   describe("foreign key resolution", () => {
     it("uses branded schema reference for FK columns when foreign column is a known PK", () => {
       // "user" table has "user_id" PK → detected because "user_id" === `${"user"}_id`
