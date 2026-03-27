@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import os from "os";
 import path from "path";
 import fs from "fs";
-import pg from "pg";
+import type pg from "pg";
 import { runSchemaGeneration } from "../../src/schema-generation/schema-generator";
 import { setupPublicSchemaTest, resetDb } from "../helpers/db";
 
@@ -122,7 +122,9 @@ describe("runSchemaGeneration", () => {
         outputTypescriptFile: outputFile,
         config: {
           overrideZodType: (col) =>
-            col.data_type === "jsonb" ? "z.record(z.string(), z.unknown())" : null,
+            col.data_type === "jsonb"
+              ? "z.record(z.string(), z.unknown())"
+              : null,
         },
       });
       const content = fs.readFileSync(outputFile, "utf8");
