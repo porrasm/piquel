@@ -1,5 +1,5 @@
 {
-  "name": "possql",
+  "name": "piquel",
   "version": "0.1.0",
   "description": "Type-safe PostgreSQL database library with schema generation",
   "main": "dist/index.js",

@@ -1,11 +1,11 @@
-# possql
+# piquel
 
 Type-safe PostgreSQL database library with schema generation.
 
 ## Installation
 
 ```bash
-npm install possql pg zod
+npm install piquel pg zod
 ```
 
 ## Quick Start
@@ -13,7 +13,7 @@ npm install possql pg zod
 ### 1. Create a database instance
 
 ```typescript
-import { createDatabase } from "possql";
+import { createDatabase } from "piquel";
 import pg from "pg";
 
 export const db = createDatabase({
@@ -25,7 +25,7 @@ export const db = createDatabase({
 ### 2. Define operations with `sql` and `createOperation`
 
 ```typescript
-import { sql, createOperation } from "possql";
+import { sql, createOperation } from "piquel";
 import { z } from "zod";
 
 const getUser = createOperation(
@@ -55,7 +55,7 @@ Add to your `package.json`:
 ```json
 {
   "scripts": {
-    "db:types": "possql generate-schema --connection-string $DATABASE_URL --output ./src/database/schema.ts"
+    "db:types": "piquel generate-schema --connection-string $DATABASE_URL --output ./src/database/schema.ts"
   }
 }
 ```
@@ -88,7 +88,7 @@ npm run db:types
 Pass via `--schema-name` CLI flag or in the programmatic API:
 
 ```typescript
-import { runSchemaGeneration } from "possql";
+import { runSchemaGeneration } from "piquel";
 
 await runSchemaGeneration({
   dbConnectionString: "postgres://...",
