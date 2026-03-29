@@ -85,5 +85,13 @@ export default defineConfig(
       "no-console": "off",
     },
   },
-  globalIgnores(["dist/", "node_modules/"]),
+  {
+    files: ["examples/**/*.ts"],
+    rules: {
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "no-console": "off",
+    },
+  },
+  globalIgnores(["dist/", "node_modules/", "examples/generated-schema.ts"]),
 );

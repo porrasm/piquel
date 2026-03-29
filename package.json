@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests examples",
     "test": "vitest run --config tests/vitest.config.ts",
     "test:watch": "vitest --config tests/vitest.config.ts",
     "test:unit": "vitest run --config tests/vitest.config.ts tests/unit",
@@ -18,7 +18,10 @@
     "test:coverage": "vitest run --config tests/vitest.config.ts --coverage",
     "db:up": "docker compose -f tests/docker/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f tests/docker/docker-compose.yml down -v",
-    "typecheck:tests": "tsc --noEmit -p tests/tsconfig.json"
+    "typecheck:tests": "tsc --noEmit -p tests/tsconfig.json",
+    "typecheck:examples": "tsc --noEmit -p examples/tsconfig.json",
+    "example": "tsx examples/main.ts",
+    "example:schema": "RUN_SCHEMA_GEN=true tsx examples/main.ts"
   },
   "dependencies": {
     "sql-template-strings": "^2.2.2",

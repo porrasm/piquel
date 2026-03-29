@@ -1,104 +1,84 @@
-# piquel
+# Piquel
 
-Type-safe PostgreSQL database library with schema generation.
+Typed raw PostgreSQL queries with optional Zod validation and schema generation.
+
+```ts
+import { z } from "zod";
+import { createDatabase, createOperation, sql } from "piquel";
+import { schema } from "./generated-schema";
+
+// Wrap a pool in a database facade
+const db = createDatabase({
+  pool: somePool,
+  useZodValidation: process.env.NODE_ENV !== "production",
+});
+
+// Create a reusable operation
+const getUserById = createOperation(
+  ({ id }: { id: number }) => sql`SELECT * FROM users WHERE id = ${id}`,
+  z.object({
+    user_id: z.number(),
+    name: z.string(),
+  }),
+);
+
+// Use the operation
+const user = await db.client.queryOne(getUserById({ id: 1 }));
+
+// Or use the operation inside a transaction
+const updatedUser = await db.transact(async (tx) => {
+  await tx.nonQuery(sql`UPDATE users SET name = ${"John"} WHERE id = ${1}`);
+  return tx.queryOne(getUserById({ id: 1 }));
+});
+```
 
 ## Installation
 
 ```bash
-npm install piquel pg zod
+npm install piquel zod
+
+# Piquel is not a database driver — you need one separately (e.g., pg)
+npm install pg
 ```
 
-## Quick Start
+## Why Piquel
 
-### 1. Create a database instance
+- Raw SQL first, no ORM DSL
+- Nested SQL composition (`sql` inside `sql`)
+- Type inference from Zod schemas
+- Optional `createOperation` pattern for reusable query units
+- Runtime validation toggle (`useZodValidation`) for safety in dev/test
+- Built-in transaction support
+- Safe parameterized SQL via template interpolation
+- Works with different PostgreSQL clients through a small adapter interface
 
-```typescript
-import { createDatabase } from "piquel";
-import pg from "pg";
+## Features
 
-export const db = createDatabase({
-  pool: new pg.Pool({ connectionString: process.env.DATABASE_URL }),
-  useZodValidation: false, // set to true in development to validate query results
-});
-```
+| Component | Description |
+|---|---|
+| **[Database facade](docs/database-facade.md)** | Wraps a pool and exposes `query`, `queryOne`, `queryOneOrNone`, and `nonQuery` with optional Zod validation |
+| **[SQL builder](docs/sql-builder.md)** | `sql` tagged template for parameterized, composable SQL |
+| **[Operations](docs/operations.md)** | `createOperation` pairs SQL + Zod validator into reusable, context-agnostic query units |
+| **[Transactions](docs/transactions.md)** | `db.transact()` with automatic commit/rollback |
+| **[Schema generation](docs/schema-generation.md)** | `runSchemaGeneration` introspects PostgreSQL and generates Zod validators + TypeScript types |
+| **[Adapter contract](docs/adapter-contract.md)** | `PoolLike`/`PoolClientLike` interfaces for integrating any PostgreSQL driver |
 
-### 2. Define operations with `sql` and `createOperation`
+### Why Piquel?
 
-```typescript
-import { sql, createOperation } from "piquel";
-import { z } from "zod";
+Piquel is lightweight and versatile, and fits common patterns of database usage. It can easily be integrated into existing projects as it support step by step (even query by query) adoption . Runtime Zod validation in dev and automated tests catches schema drift early while schema generation can be utilized to keep type information in sync with the database.
 
-const getUser = createOperation(
-  ({ id }: { id: number }) => sql`SELECT * FROM users WHERE id = ${id}`,
-  z.object({ id: z.number(), name: z.string(), email: z.string() }),
-);
+## Documentation
 
-// Execute
-const user = await db.client.queryOne(getUser({ id: 1 }));
-const users = await db.client.query(getUser({ id: 1 }));
-```
+Dcumentation is available in the [`docs/`](docs/) folder:
 
-### 3. Transactions
+- [Getting Started](docs/getting-started.md) — installation, prerequisites, quickstart
+- [SQL Builder](docs/sql-builder.md) — parameterized SQL, nesting, dynamic composition
+- [Database Facade](docs/database-facade.md) — query methods, validation, error behavior
+- [Operations](docs/operations.md) — reusable query units with `createOperation`
+- [Transactions](docs/transactions.md) — commit/rollback semantics
+- [Schema Generation](docs/schema-generation.md) — config options and generated output
+- [Adapter Contract](docs/adapter-contract.md) — integrating other PostgreSQL drivers
 
-```typescript
-const result = await db.transact(async (client) => {
-  const user = await client.queryOne(getUser({ id: 1 }));
-  await client.nonQuery(updateUser({ id: user.id, name: "New Name" }));
-  return user;
-});
-```
+### Examples
 
-## Schema Generation
-
-Add to your `package.json`:
-
-```json
-{
-  "scripts": {
-    "db:types": "piquel generate-schema --connection-string $DATABASE_URL --output ./src/database/schema.ts"
-  }
-}
-```
-
-Then run:
-
-```bash
-npm run db:types
-```
-
-### CLI Options
-
-| Flag | Description | Required |
-|------|-------------|----------|
-| `--connection-string` | PostgreSQL connection string | Yes |
-| `--output` | Output TypeScript file path | Yes |
-| `--schema-name` | Export name for the schema object (default: `schema`) | No |
-
-## Configuration
-
-### `createDatabase(config)`
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `pool` | `pg.Pool` | PostgreSQL connection pool |
-| `useZodValidation` | `boolean` | Validate query results with Zod (disable in production for performance) |
-
-### Schema Generation Config
-
-Pass via `--schema-name` CLI flag or in the programmatic API:
-
-```typescript
-import { runSchemaGeneration } from "piquel";
-
-await runSchemaGeneration({
-  dbConnectionString: "postgres://...",
-  outputTypescriptFile: "./src/schema.ts",
-  config: {
-    schemaExportName: "schema",         // default: "schema"
-    primaryKeySuffix: "_id",            // default: "_id"
-    tableTypeSuffix: "Type",            // default: "Type"
-    tableNameTransform: (name) => name, // default: identity
-    columnNameTransform: (name) => name, // default: identity
-  },
-});
-```
+Examples are in [`examples/`](examples/) and they provide a quick demonstration of most common use cases.

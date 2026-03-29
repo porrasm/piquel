@@ -1,0 +1,84 @@
+# Schema Generation
+
+`runSchemaGeneration` introspects your PostgreSQL `public` schema and generates a TypeScript file with Zod validators and inferred types.
+
+## Basic usage
+
+You should create a development script to run schema generation and setup e.g., an npm script to run it using `npx`. Below is a full example of a schema generation script.
+
+```ts
+import pg from "pg";
+import { runSchemaGeneration } from "piquel";
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const main = async () => {
+  await runSchemaGeneration({
+    pool,
+    outputTypescriptFile: "src/db/schema.ts",
+    config: {
+      // configuration options here
+    }
+  });
+};
+
+void main();
+```
+
+## Configuration
+
+Pass a `config` object to customize the generated output:
+
+```ts
+await runSchemaGeneration({
+  pool,
+  outputTypescriptFile: "src/db/generated-schema.ts",
+  config: {
+    schemaExportName: "dbSchema",        // default: "schema"
+    primaryKeySuffix: "_id",             // default: "_id"
+    tableTypeSuffix: "Type",             // default: "Type"
+    allowUnknownDataTypes: false,        // default: false
+    tableNameTransform: (name) => name,
+    columnNameTransform: (name) => name,
+    overrideZodType: (col) =>
+      col.data_type === "jsonb"
+        ? "z.record(z.string(), z.unknown())"
+        : null,
+    getIgnoredTables: (defaults) => {
+      defaults.add("my_internal_table");
+      return defaults;
+    },
+    getZodTypeMap: (defaults) => ({
+      ...defaults,
+      numeric: "z.string()",
+    }),
+    getZodArrayTypeMap: (defaults) => defaults,
+  },
+});
+```
+
+### Config options
+
+| Option | Default | Description |
+|---|---|---|
+| `schemaExportName` | `"schema"` | Name of the exported schema object |
+| `primaryKeySuffix` | `"_id"` | Suffix used for the ID types of primary key columns |
+| `tableTypeSuffix` | `"Type"` | Suffix appended to generated type names |
+| `zodNullableSuffix` | `".nullable()"` | Zod method appended for nullable columns |
+| `allowUnknownDataTypes` | `false` | If `false`, throws on unmapped PostgreSQL types |
+| `overrideZodType` | `() => null` | Per-column Zod type override |
+| `tableNameTransform` | identity | Transform table names in generated output |
+| `columnNameTransform` | identity | Transform column names in generated output |
+| `getIgnoredTables` | pass-through | Modify the set of ignored tables |
+| `getZodTypeMap` | pass-through | Modify the default PostgreSQL → Zod type map |
+| `getZodArrayTypeMap` | pass-through | Modify the default array type map |
+
+## Generated output
+
+The generated file exports:
+- A Zod schema object containing validators for each table
+- Inferred TypeScript types for each table
+
+Run `npm run example:schema` to see schema generation in action against the pagila example database.
