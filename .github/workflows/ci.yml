@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_USER: pgtest
+          POSTGRES_PASSWORD: pgtest
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd "pg_isready -U pgtest"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Init database
+        run: psql postgresql://pgtest:pgtest@localhost:5433/postgres -f tests/docker/init/01-create-databases.sql
+
+      - name: Prettier check
+        run: npm run prettier:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+        env:
+          CI: true
+
+      - name: Example schema gen
+        run: npm run example:schema
+
+      - name: Example
+        run: npm run example
