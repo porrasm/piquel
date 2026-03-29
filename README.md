@@ -41,17 +41,6 @@ npm install piquel zod
 npm install pg
 ```
 
-## Why Piquel
-
-- Raw SQL first, no ORM DSL
-- Nested SQL composition (`sql` inside `sql`)
-- Type inference from Zod schemas
-- Optional `createOperation` pattern for reusable query units
-- Runtime validation toggle (`useZodValidation`) for safety in dev/test
-- Built-in transaction support
-- Safe parameterized SQL via template interpolation
-- Works with different PostgreSQL clients through a small adapter interface
-
 ## Features
 
 | Component | Description |

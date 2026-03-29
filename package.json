@@ -4,7 +4,7 @@
   "description": "Type-safe PostgreSQL database library with schema generation",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/porrasm/possql.git"
+    "url": "git+https://github.com/porrasm/piquel.git"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
