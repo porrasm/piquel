@@ -475,7 +475,7 @@ describe("parsePublicSchema", () => {
       const settingCol = tables.find((t) => t.name === "setting")?.columns[0];
       const otherCol = tables.find((t) => t.name === "other")?.columns[0];
       expect(settingCol?.zodType).toBe("SettingValueSchema");
-      expect(otherCol?.zodType).toBe("z.object({})");
+      expect(otherCol?.zodType).toBe("z.record(z.string(), z.unknown())");
     });
 
     it("takes precedence over unknown type handling", () => {

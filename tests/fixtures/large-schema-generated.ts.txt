@@ -370,25 +370,25 @@ export const schema = {
     types: {
       key: z.string(),
       setting_id: setting_idSchema,
-      value: z.object({}),
+      value: z.record(z.string(), z.unknown()),
     },
     notNullTypes: {
       key: z.string(),
       setting_id: setting_idSchema,
-      value: z.object({}),
+      value: z.record(z.string(), z.unknown()),
     },
     validator: z
       .object({
         key: z.string(),
         setting_id: setting_idSchema,
-        value: z.object({}),
+        value: z.record(z.string(), z.unknown()),
       })
       .strict(),
     notNullValidator: z
       .object({
         key: z.string(),
         setting_id: setting_idSchema,
-        value: z.object({}),
+        value: z.record(z.string(), z.unknown()),
       })
       .strict(),
   },

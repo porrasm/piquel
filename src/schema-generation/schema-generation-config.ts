@@ -75,7 +75,7 @@ const DEFAULT_ZOD_TYPE_MAP: Record<string, string> = {
   oid: "z.number()",
   bytea: "z.instanceof(Buffer)",
   numeric: "z.number()",
-  jsonb: "z.object({})",
+  jsonb: "z.record(z.string(), z.unknown())",
 };
 
 const DEFAULT_ZOD_ARRAY_TYPE_MAP: Record<string, string> = {

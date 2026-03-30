@@ -157,6 +157,24 @@ describe("runSchemaGeneration", () => {
     }
   });
 
+  it("uses permissive default zod type for jsonb columns", async () => {
+    const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
+
+    try {
+      await runSchemaGeneration({
+        pool: ctx.pool,
+        outputTypescriptFile: outputFile,
+      });
+      const content = fs.readFileSync(outputFile, "utf8");
+      expect(content).toContain("z.record(z.string(), z.unknown())");
+      expect(content).not.toContain("value: z.object({})");
+    } finally {
+      if (fs.existsSync(outputFile)) {
+        fs.unlinkSync(outputFile);
+      }
+    }
+  });
+
   it("overrides specific jsonb column by table and column name", async () => {
     const outputFile = path.join(os.tmpdir(), `schema-test-${Date.now()}.ts`);
 
