@@ -53,6 +53,7 @@ interface QueryParams {
   clientMetadata: ClientMetadata;
 }
 
+/** Implements {@link DBClient.query}. */
 const createQuery =
   ({
     getClient,
@@ -70,6 +71,7 @@ const createQuery =
     return useZodValidation ? validator.array().parse(rows) : (rows as never);
   };
 
+/** Implements {@link DBClient.queryOneOrNone}. */
 const createQueryOneOrNone =
   ({
     getClient,
@@ -90,6 +92,7 @@ const createQueryOneOrNone =
     return useZodValidation ? validator.parse(firstRow) : (firstRow as never);
   };
 
+/** Implements {@link DBClient.queryOne}. */
 const createQueryOne =
   ({
     getClient,
@@ -110,6 +113,7 @@ const createQueryOne =
     return useZodValidation ? validator.parse(firstRow) : (firstRow as never);
   };
 
+/** Implements {@link DBClient.nonQuery}. */
 const createNonQuery =
   ({ getClient, clientMetadata }: QueryParams): DBClient["nonQuery"] =>
   async (...args) => {

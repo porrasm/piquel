@@ -39,9 +39,38 @@ export interface ClientMetadata {
 }
 
 export interface DBClient {
+  /**
+   * Runs the query and returns all rows as an array. An empty result set yields
+   * `[]`.
+   *
+   * Pass a Zod schema as the second argument, or use a `PreparedOperation` from
+   * `createOperation`, to validate each row when `useZodValidation` is enabled on
+   * the database. Without a validator, row types are `unknown`.
+   */
   query: <Args, R>(...args: QueryParams<Args, R>) => Promise<R[]>;
+  /**
+   * Runs the query and returns the first row, or `null` if the result is empty.
+   *
+   * Does not append `LIMIT 1` or otherwise constrain the query. The database
+   * returns the full result set; only the first row is used. Add `LIMIT 1` (or
+   * equivalent) in your SQL when you expect at most one row so the server does
+   * not fetch or transfer extra rows.
+   */
   queryOneOrNone: <Args, R>(...args: QueryParams<Args, R>) => Promise<R | null>;
+  /**
+   * Runs the query and returns the first row, or throws if the result is empty.
+   *
+   * Does not append `LIMIT 1` or otherwise constrain the query. The database
+   * returns the full result set; only the first row is used. Add `LIMIT 1` (or
+   * equivalent) in your SQL when you expect at most one row so the server does
+   * not fetch or transfer extra rows.
+   */
   queryOne: <Args, R>(...args: QueryParams<Args, R>) => Promise<R>;
+  /**
+   * Executes SQL for statements where you do not need row data (`INSERT`,
+   * `UPDATE`, `DELETE`, `COPY`, DDL, etc.). The result set is not returned;
+   * use `query` when you need rows.
+   */
   nonQuery: <Args>(...args: QueryParams<Args, void>) => Promise<void>;
   clientMetadata: ClientMetadata;
 }
