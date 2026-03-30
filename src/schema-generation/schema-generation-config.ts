@@ -60,13 +60,20 @@ const DEFAULT_IGNORED_TABLES = new Set([
 const DEFAULT_ZOD_TYPE_MAP: Record<string, string> = {
   bigint: "z.string()",
   text: "z.string()",
+  char: "z.string()",
+  character: "z.string()",
   "timestamp with time zone": "z.date()",
   "timestamp without time zone": "z.date()",
+  "time with time zone": "z.string()",
+  "time without time zone": "z.string()",
+  interval: "z.string()",
   date: "z.date()",
   integer: "z.number().int()",
+  smallint: "z.number().int()",
   boolean: "z.boolean()",
   uuid: "z.string().uuid()",
   "double precision": "z.number()",
+  real: "z.number()",
   "character varying": "z.string()",
   point: `z.object({
     x: z.number(),
@@ -75,6 +82,12 @@ const DEFAULT_ZOD_TYPE_MAP: Record<string, string> = {
   oid: "z.number()",
   bytea: "z.instanceof(Uint8Array)",
   numeric: "z.number()",
+  money: "z.string()",
+  citext: "z.string()",
+  inet: "z.string()",
+  cidr: "z.string()",
+  macaddr: "z.string()",
+  json: "z.record(z.string(), z.unknown())",
   jsonb: "z.record(z.string(), z.unknown())",
 };
 

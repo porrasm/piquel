@@ -150,6 +150,37 @@ describe("parsePublicSchema", () => {
     });
   });
 
+  describe("default zod type map", () => {
+    it.each([
+      ["json", "z.record(z.string(), z.unknown())"],
+      ["smallint", "z.number().int()"],
+      ["real", "z.number()"],
+      ["interval", "z.string()"],
+      ["time without time zone", "z.string()"],
+      ["time with time zone", "z.string()"],
+      ["citext", "z.string()"],
+      ["inet", "z.string()"],
+      ["cidr", "z.string()"],
+      ["macaddr", "z.string()"],
+      ["char", "z.string()"],
+      ["character", "z.string()"],
+      ["money", "z.string()"],
+    ])("maps %s to %s", (dataType, expectedZodType) => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "value",
+          data_type: dataType,
+          udt_name: dataType,
+        }),
+      ];
+      const tables = parsePublicSchema(rows, [], [], defaultConfig);
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe(expectedZodType);
+      expect(col.zodTypeWithoutNullable).toBe(expectedZodType);
+    });
+  });
+
   describe("primary key detection", () => {
     it("marks column as primary key when it appears in primaryKeys", () => {
       const rows: PublicSchemaRow[] = [
