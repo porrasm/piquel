@@ -539,6 +539,40 @@ describe("parsePublicSchema", () => {
       const col = post?.columns.find((c) => c.name === "author_ref");
       expect(col?.zodType).toBe("z.number().int()");
     });
+
+    it("prefers FK rows targeting a PK when duplicate FK rows exist for one source column", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "orders",
+          column_name: "order_id",
+          data_type: "integer",
+        }),
+      ];
+      const foreignKeys = [
+        {
+          table_name: "orders",
+          column_name: "order_id",
+          foreign_table_name: "order_items",
+          foreign_column_name: "product_id",
+        },
+        {
+          table_name: "orders",
+          column_name: "order_id",
+          foreign_table_name: "order_items",
+          foreign_column_name: "order_id",
+        },
+      ];
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys,
+        primaryKeys: [pk("order_items", "order_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
+      const orders = tables.find((t) => t.name === "orders");
+      const col = orders?.columns.find((c) => c.name === "order_id");
+      expect(col?.zodType).toContain("order_items_idSchema");
+    });
   });
 
   describe("overrideZodType", () => {

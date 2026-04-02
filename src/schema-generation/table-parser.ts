@@ -179,6 +179,14 @@ export const parsePublicSchema = ({
   const isForeignKeyToAPrimaryKey = (fk: ForeignKey): boolean =>
     isPrimaryKey(fk.foreign_table_name, fk.foreign_column_name);
 
+  const foreignKeysByColumn = new Map<string, ForeignKey[]>();
+  for (const foreignKey of foreignKeys) {
+    const key = `${foreignKey.table_name}.${foreignKey.column_name}`;
+    const matchingForeignKeys = foreignKeysByColumn.get(key) ?? [];
+    matchingForeignKeys.push(foreignKey);
+    foreignKeysByColumn.set(key, matchingForeignKeys);
+  }
+
   const tables = new Map<string, TableToGenerate>();
 
   rows.forEach((row) => {
@@ -191,11 +199,11 @@ export const parsePublicSchema = ({
       columns: [],
     };
 
-    const foreignKey = foreignKeys.find(
-      (foreignKey) =>
-        foreignKey.table_name === row.table_name &&
-        foreignKey.column_name === row.column_name,
-    );
+    const matchingForeignKeys =
+      foreignKeysByColumn.get(`${row.table_name}.${row.column_name}`) ?? [];
+    const foreignKey =
+      matchingForeignKeys.find((fk) => isForeignKeyToAPrimaryKey(fk)) ??
+      matchingForeignKeys[0];
     if (foreignKey && isForeignKeyToAPrimaryKey(foreignKey)) {
       const transformedForeignKeyTableName = config.tableNameTransform(
         foreignKey.foreign_table_name,
