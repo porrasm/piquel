@@ -1,5 +1,8 @@
 -- Covers all DEFAULT_ZOD_TYPE_MAP and DEFAULT_ZOD_ARRAY_TYPE_MAP types.
 
+CREATE TYPE article_status AS ENUM ('draft', 'published', 'archived');
+CREATE TYPE priority_level AS ENUM ('low', 'medium', 'high', 'critical');
+
 CREATE TABLE category (
   category_id integer PRIMARY KEY,
   name        text    NOT NULL
@@ -59,13 +62,15 @@ CREATE TABLE tag (
 );
 
 CREATE TABLE article (
-  article_id  integer  PRIMARY KEY,
-  category_id integer  NOT NULL REFERENCES category(category_id),
-  profile_id  integer  REFERENCES profile(profile_id),
-  title       text     NOT NULL,
+  article_id  integer         PRIMARY KEY,
+  category_id integer         NOT NULL REFERENCES category(category_id),
+  profile_id  integer         REFERENCES profile(profile_id),
+  title       text            NOT NULL,
   body        text,
-  published   boolean  NOT NULL,
-  view_count  integer  NOT NULL
+  published   boolean         NOT NULL,
+  priority    priority_level  NOT NULL,
+  status      article_status  NOT NULL,
+  view_count  integer         NOT NULL
 );
 
 CREATE TABLE article_tag (

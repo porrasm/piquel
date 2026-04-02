@@ -1,5 +1,8 @@
-import { z } from "zod";
-import type { ForeignKey, PrimaryKey } from "./schema-generator";
+import type {
+  ForeignKey,
+  PrimaryKey,
+  PublicSchemaRow,
+} from "./metadata-queries";
 import {
   type PopulatedSchemaGenerationConfig,
   UNKNOWN_DATA_TYPE_ZOD_TYPE,
@@ -18,34 +21,49 @@ export interface TableToGenerate {
   columns: ColumnToGenerate[];
 }
 
-export const publicSchemaValidator = z.object({
-  table_schema: z.string(),
-  table_name: z.string(),
-  column_name: z.string(),
-  data_type: z.string(),
-  is_nullable: z.string(),
-  udt_name: z.string(),
-});
+export interface EnumType {
+  name: string;
+  labels: string[];
+}
 
-export type PublicSchemaRow = z.infer<typeof publicSchemaValidator>;
+const USER_DEFINED_DATA_TYPE = "USER-DEFINED";
 
+/**
+ * Returns the automatically generated Zod type for a column.
+ * Automatically handles array and enum types.
+ */
 const getZodType = (
   row: PublicSchemaRow,
+  enumMap: Map<string, EnumType>,
   config: PopulatedSchemaGenerationConfig,
 ): string | null => {
   // Array type information does not contain the element type
   if (row.data_type === config.arrayDataTypeName) {
     return config.zodArrayTypeMap[row.udt_name] ?? null;
   }
+  // Enum types show up as USER-DEFINED with udt_name matching the enum name
+  if (row.data_type === USER_DEFINED_DATA_TYPE) {
+    const enumType = enumMap.get(row.udt_name);
+    if (enumType) {
+      return `${enumType.name}Schema`;
+    }
+  }
   return config.zodTypeMap[row.data_type] ?? null;
 };
 
-const parseColumn = (
-  row: PublicSchemaRow,
-  isPrimaryKey: boolean,
-  config: PopulatedSchemaGenerationConfig,
-): ColumnToGenerate => {
-  const zodType = config.overrideZodType(row) ?? getZodType(row, config);
+const parseColumn = ({
+  row,
+  isPrimaryKey,
+  enumMap,
+  config,
+}: {
+  row: PublicSchemaRow;
+  isPrimaryKey: boolean;
+  enumMap: Map<string, EnumType>;
+  config: PopulatedSchemaGenerationConfig;
+}): ColumnToGenerate => {
+  const zodType =
+    config.overrideZodType(row) ?? getZodType(row, enumMap, config);
 
   if (!zodType && config.allowUnknownDataTypes) {
     return {
@@ -73,12 +91,48 @@ const parseColumn = (
   };
 };
 
-export const parsePublicSchema = (
-  rows: PublicSchemaRow[],
-  foreignKeys: ForeignKey[],
-  primaryKeys: PrimaryKey[],
-  config: PopulatedSchemaGenerationConfig,
-): TableToGenerate[] => {
+export interface ParsedSchema {
+  tables: TableToGenerate[];
+  enums: EnumType[];
+}
+
+const getUsedEnums = ({
+  rows,
+  enumMap,
+  enumTypes,
+}: {
+  rows: PublicSchemaRow[];
+  enumMap: Map<string, EnumType>;
+  enumTypes: EnumType[];
+}): EnumType[] => {
+  // Only include enums that are actually used by columns in the schema
+  const usedEnumNames = new Set<string>();
+  for (const row of rows) {
+    if (row.data_type === USER_DEFINED_DATA_TYPE && enumMap.has(row.udt_name)) {
+      usedEnumNames.add(row.udt_name);
+    }
+  }
+  const usedEnums = enumTypes
+    .filter((e) => usedEnumNames.has(e.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return usedEnums;
+};
+
+export const parsePublicSchema = ({
+  rows,
+  foreignKeys,
+  primaryKeys,
+  enumTypes,
+  config,
+}: {
+  rows: PublicSchemaRow[];
+  foreignKeys: ForeignKey[];
+  primaryKeys: PrimaryKey[];
+  enumTypes: EnumType[];
+  config: PopulatedSchemaGenerationConfig;
+}): ParsedSchema => {
+  const enumMap = new Map(enumTypes.map((e) => [e.name, e]));
   const primaryKeySet = new Set(
     primaryKeys.map((pk) => `${pk.table_name}.${pk.column_name}`),
   );
@@ -119,7 +173,12 @@ export const parsePublicSchema = (
       });
     } else {
       table.columns.push(
-        parseColumn(row, isPrimaryKey(row.table_name, row.column_name), config),
+        parseColumn({
+          row,
+          isPrimaryKey: isPrimaryKey(row.table_name, row.column_name),
+          enumMap,
+          config,
+        }),
       );
     }
 
@@ -128,7 +187,11 @@ export const parsePublicSchema = (
   for (const table of tables.values()) {
     table.columns.sort((a, b) => a.name.localeCompare(b.name));
   }
-  return Array.from(tables.values()).sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+
+  return {
+    tables: Array.from(tables.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    ),
+    enums: getUsedEnums({ rows, enumMap, enumTypes }),
+  };
 };

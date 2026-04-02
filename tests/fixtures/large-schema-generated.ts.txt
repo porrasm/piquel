@@ -3,6 +3,17 @@
 
 import { z } from "zod";
 
+export const article_statusSchema = z.enum(["draft", "published", "archived"]);
+export type article_status = z.infer<typeof article_statusSchema>;
+
+export const priority_levelSchema = z.enum([
+  "low",
+  "medium",
+  "high",
+  "critical",
+]);
+export type priority_level = z.infer<typeof priority_levelSchema>;
+
 export const article_idSchema = z.number().int().brand<"article_id">();
 export type article_id = z.infer<typeof article_idSchema>;
 
@@ -49,8 +60,10 @@ export const schema = {
       article_id: article_idSchema,
       body: z.string().nullable(),
       category_id: category_idSchema,
+      priority: priority_levelSchema,
       profile_id: profile_idSchema.nullable(),
       published: z.boolean(),
+      status: article_statusSchema,
       title: z.string(),
       view_count: z.number().int(),
     },
@@ -58,8 +71,10 @@ export const schema = {
       article_id: article_idSchema,
       body: z.string(),
       category_id: category_idSchema,
+      priority: priority_levelSchema,
       profile_id: profile_idSchema,
       published: z.boolean(),
+      status: article_statusSchema,
       title: z.string(),
       view_count: z.number().int(),
     },
@@ -68,8 +83,10 @@ export const schema = {
         article_id: article_idSchema,
         body: z.string().nullable(),
         category_id: category_idSchema,
+        priority: priority_levelSchema,
         profile_id: profile_idSchema.nullable(),
         published: z.boolean(),
+        status: article_statusSchema,
         title: z.string(),
         view_count: z.number().int(),
       })
@@ -79,8 +96,10 @@ export const schema = {
         article_id: article_idSchema,
         body: z.string(),
         category_id: category_idSchema,
+        priority: priority_levelSchema,
         profile_id: profile_idSchema,
         published: z.boolean(),
+        status: article_statusSchema,
         title: z.string(),
         view_count: z.number().int(),
       })

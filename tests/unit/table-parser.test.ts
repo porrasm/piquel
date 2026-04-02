@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { parsePublicSchema } from "../../src/schema-generation/table-parser";
 import { populateSchemaGenerationConfig } from "../../src/schema-generation/schema-generation-config";
-import type { PublicSchemaRow } from "../../src/schema-generation/table-parser";
-import type { PrimaryKey } from "../../src/schema-generation/schema-generator";
+import type { PublicSchemaRow } from "../../src/schema-generation/metadata-queries";
+import type { PrimaryKey } from "../../src/schema-generation/metadata-queries";
 
 const defaultConfig = populateSchemaGenerationConfig({});
 
@@ -38,12 +38,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("user", "user_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("user", "user_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       expect(tables).toHaveLength(1);
       expect(tables[0]?.name).toBe("user");
       expect(tables[0]?.columns).toHaveLength(2);
@@ -62,12 +63,13 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("zebra", "zebra_id"), pk("alpha", "alpha_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("zebra", "zebra_id"), pk("alpha", "alpha_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       expect(tables[0]?.name).toBe("alpha");
       expect(tables[1]?.name).toBe("zebra");
     });
@@ -92,12 +94,13 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("user", "user_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("user", "user_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const names = tables[0]?.columns.map((c) => c.name);
       expect(names).toEqual(["active", "name", "user_id"]);
     });
@@ -114,7 +117,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], defaultConfig);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toMatch(/\.nullable\(\)$/);
     });
@@ -129,7 +138,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], defaultConfig);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).not.toMatch(/\.nullable\(\)/);
     });
@@ -144,7 +159,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], defaultConfig);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodTypeWithoutNullable).not.toMatch(/\.nullable\(\)/);
     });
@@ -174,7 +195,13 @@ describe("parsePublicSchema", () => {
           udt_name: dataType,
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], defaultConfig);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe(expectedZodType);
       expect(col.zodTypeWithoutNullable).toBe(expectedZodType);
@@ -190,12 +217,13 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("user", "user_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("user", "user_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       expect(tables[0]?.columns[0]?.isPrimaryKey).toBe(true);
     });
 
@@ -208,12 +236,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("user", "user_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("user", "user_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       expect(tables[0]?.columns[0]?.isPrimaryKey).toBe(false);
     });
   });
@@ -232,12 +261,13 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("migrations", "migrations_id"), pk("user", "user_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("migrations", "migrations_id"), pk("user", "user_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const tableNames = tables.map((t) => t.name);
       expect(tableNames).not.toContain("migrations");
       expect(tableNames).toContain("user");
@@ -260,12 +290,16 @@ describe("parsePublicSchema", () => {
           data_type: "integer",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("custom_ignored", "custom_ignored_id"), pk("user", "user_id")],
+        foreignKeys: [],
+        primaryKeys: [
+          pk("custom_ignored", "custom_ignored_id"),
+          pk("user", "user_id"),
+        ],
+        enumTypes: [],
         config,
-      );
+      });
       const tableNames = tables.map((t) => t.name);
       expect(tableNames).not.toContain("custom_ignored");
     });
@@ -280,9 +314,15 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      expect(() => parsePublicSchema(rows, [], [], defaultConfig)).toThrow(
-        /no known Zod mapping/,
-      );
+      expect(() =>
+        parsePublicSchema({
+          rows,
+          foreignKeys: [],
+          primaryKeys: [],
+          enumTypes: [],
+          config: defaultConfig,
+        }),
+      ).toThrow(/no known Zod mapping/);
     });
   });
 
@@ -298,7 +338,15 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      expect(() => parsePublicSchema(rows, [], [], config)).not.toThrow();
+      expect(() =>
+        parsePublicSchema({
+          rows,
+          foreignKeys: [],
+          primaryKeys: [],
+          enumTypes: [],
+          config,
+        }),
+      ).not.toThrow();
     });
 
     it("uses z.any() for unknown data types when allowUnknownDataTypes is true", () => {
@@ -313,7 +361,13 @@ describe("parsePublicSchema", () => {
           udt_name: "???",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.any()");
       expect(col.zodTypeWithoutNullable).toBe("z.any()");
@@ -331,7 +385,13 @@ describe("parsePublicSchema", () => {
           udt_name: "_unknown_type",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.any()");
     });
@@ -348,7 +408,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.string()");
     });
@@ -366,7 +432,13 @@ describe("parsePublicSchema", () => {
           is_nullable: "YES",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       // unknown types always get z.any() regardless of nullability
       expect(col.zodType).toBe("z.any()");
@@ -384,7 +456,13 @@ describe("parsePublicSchema", () => {
           udt_name: "custom_id",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.isPrimaryKey).toBe(false);
     });
@@ -417,12 +495,13 @@ describe("parsePublicSchema", () => {
           foreign_column_name: "user_id",
         },
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
         foreignKeys,
-        [pk("user", "user_id"), pk("post", "post_id")],
-        defaultConfig,
-      );
+        primaryKeys: [pk("user", "user_id"), pk("post", "post_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const post = tables.find((t) => t.name === "post");
       const fkCol = post?.columns.find((c) => c.name === "user_id");
       expect(fkCol?.zodType).toContain("user_idSchema");
@@ -449,12 +528,13 @@ describe("parsePublicSchema", () => {
           foreign_column_name: "email", // email is not a PK, so falls back
         },
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
         foreignKeys,
-        [pk("post", "post_id")],
-        defaultConfig,
-      );
+        primaryKeys: [pk("post", "post_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const post = tables.find((t) => t.name === "post");
       const col = post?.columns.find((c) => c.name === "author_ref");
       expect(col?.zodType).toBe("z.number().int()");
@@ -476,7 +556,13 @@ describe("parsePublicSchema", () => {
           is_nullable: "NO",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("MyJsonSchema");
       expect(col.zodTypeWithoutNullable).toBe("MyJsonSchema");
@@ -496,7 +582,13 @@ describe("parsePublicSchema", () => {
           is_nullable: "YES",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("MyJsonSchema.nullable()");
       expect(col.zodTypeWithoutNullable).toBe("MyJsonSchema");
@@ -514,7 +606,13 @@ describe("parsePublicSchema", () => {
           udt_name: "text",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("z.string()");
     });
@@ -540,7 +638,13 @@ describe("parsePublicSchema", () => {
           udt_name: "jsonb",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const settingCol = tables.find((t) => t.name === "setting")?.columns[0];
       const otherCol = tables.find((t) => t.name === "other")?.columns[0];
       expect(settingCol?.zodType).toBe("SettingValueSchema");
@@ -561,7 +665,13 @@ describe("parsePublicSchema", () => {
           udt_name: "custom",
         }),
       ];
-      const tables = parsePublicSchema(rows, [], [], config);
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
       const col = tables[0]?.columns[0];
       expect(col.zodType).toBe("CustomSchema");
     });
@@ -579,14 +689,193 @@ describe("parsePublicSchema", () => {
           is_nullable: "NO",
         }),
       ];
-      const tables = parsePublicSchema(
+      const { tables } = parsePublicSchema({
         rows,
-        [],
-        [pk("t", "t_id")],
-        defaultConfig,
-      );
+        foreignKeys: [],
+        primaryKeys: [pk("t", "t_id")],
+        enumTypes: [],
+        config: defaultConfig,
+      });
       const col = tables[0]?.columns.find((c) => c.name === "tags");
       expect(col?.zodType).toBe("z.array(z.string())");
+    });
+  });
+
+  describe("enum types", () => {
+    it("maps USER-DEFINED enum columns to enum schema reference", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "status",
+          data_type: "USER-DEFINED",
+          udt_name: "status_enum",
+          is_nullable: "NO",
+        }),
+      ];
+      const enumTypes = [
+        { name: "status_enum", labels: ["active", "inactive"] },
+      ];
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes,
+        config: defaultConfig,
+      });
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("status_enumSchema");
+      expect(col.zodTypeWithoutNullable).toBe("status_enumSchema");
+    });
+
+    it("appends .nullable() for nullable enum columns", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "status",
+          data_type: "USER-DEFINED",
+          udt_name: "status_enum",
+          is_nullable: "YES",
+        }),
+      ];
+      const enumTypes = [
+        { name: "status_enum", labels: ["active", "inactive"] },
+      ];
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes,
+        config: defaultConfig,
+      });
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("status_enumSchema.nullable()");
+      expect(col.zodTypeWithoutNullable).toBe("status_enumSchema");
+    });
+
+    it("returns used enums sorted alphabetically", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "priority",
+          data_type: "USER-DEFINED",
+          udt_name: "priority_level",
+          is_nullable: "NO",
+        }),
+        makeRow({
+          table_name: "t",
+          column_name: "status",
+          data_type: "USER-DEFINED",
+          udt_name: "article_status",
+          is_nullable: "NO",
+        }),
+      ];
+      const enumTypes = [
+        { name: "priority_level", labels: ["low", "medium", "high"] },
+        { name: "article_status", labels: ["draft", "published", "archived"] },
+      ];
+      const { enums } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes,
+        config: defaultConfig,
+      });
+      expect(enums).toHaveLength(2);
+      expect(enums[0]?.name).toBe("article_status");
+      expect(enums[1]?.name).toBe("priority_level");
+    });
+
+    it("excludes unused enums from the result", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "name",
+          data_type: "text",
+          udt_name: "text",
+        }),
+      ];
+      const enumTypes = [{ name: "unused_enum", labels: ["a", "b"] }];
+      const { enums } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes,
+        config: defaultConfig,
+      });
+      expect(enums).toHaveLength(0);
+    });
+
+    it("throws for USER-DEFINED types that are not enums without allowUnknownDataTypes", () => {
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "geo",
+          data_type: "USER-DEFINED",
+          udt_name: "geometry",
+          is_nullable: "NO",
+        }),
+      ];
+      expect(() =>
+        parsePublicSchema({
+          rows,
+          foreignKeys: [],
+          primaryKeys: [],
+          enumTypes: [],
+          config: defaultConfig,
+        }),
+      ).toThrow(/no known Zod mapping/);
+    });
+
+    it("falls back to z.any() for USER-DEFINED non-enum with allowUnknownDataTypes", () => {
+      const config = populateSchemaGenerationConfig({
+        allowUnknownDataTypes: true,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "geo",
+          data_type: "USER-DEFINED",
+          udt_name: "geometry",
+          is_nullable: "NO",
+        }),
+      ];
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes: [],
+        config,
+      });
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("z.any()");
+    });
+
+    it("overrideZodType takes precedence over enum mapping", () => {
+      const config = populateSchemaGenerationConfig({
+        overrideZodType: (col) =>
+          col.udt_name === "status_enum" ? "CustomStatusSchema" : null,
+      });
+      const rows: PublicSchemaRow[] = [
+        makeRow({
+          table_name: "t",
+          column_name: "status",
+          data_type: "USER-DEFINED",
+          udt_name: "status_enum",
+          is_nullable: "NO",
+        }),
+      ];
+      const enumTypes = [
+        { name: "status_enum", labels: ["active", "inactive"] },
+      ];
+      const { tables } = parsePublicSchema({
+        rows,
+        foreignKeys: [],
+        primaryKeys: [],
+        enumTypes,
+        config,
+      });
+      const col = tables[0]?.columns[0];
+      expect(col.zodType).toBe("CustomStatusSchema");
     });
   });
 });

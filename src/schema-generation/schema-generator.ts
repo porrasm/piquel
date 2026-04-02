@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import { createDatabase, type Database } from "../database/db-definition";
-import { z } from "zod";
-import { parsePublicSchema, publicSchemaValidator } from "./table-parser";
+import { parsePublicSchema } from "./table-parser";
 import { generateSchemaTypescript } from "./schema.template";
 import fs from "fs";
 import { execFileSync } from "child_process";
@@ -11,22 +10,13 @@ import {
   populateSchemaGenerationConfig,
   type SchemaGenerationConfig,
 } from "./schema-generation-config";
-
-const foreignKeyValidator = z.object({
-  table_name: z.string(),
-  column_name: z.string(),
-  foreign_table_name: z.string(),
-  foreign_column_name: z.string(),
-});
-
-export type ForeignKey = z.infer<typeof foreignKeyValidator>;
-
-const primaryKeyValidator = z.object({
-  table_name: z.string(),
-  column_name: z.string(),
-});
-
-export type PrimaryKey = z.infer<typeof primaryKeyValidator>;
+import {
+  fetchColumns,
+  fetchForeignKeys,
+  fetchPrimaryKeys,
+  fetchEnumRows,
+  groupEnumRows,
+} from "./metadata-queries";
 
 const runPrettierOnSchemaFile = (outputTypescriptFile: string): void => {
   try {
@@ -76,51 +66,21 @@ export const runSchemaGeneration = async (
 
   await dbHealthCheck(db);
 
-  const rows = await db.client.query(
-    sql`SELECT * FROM information_schema.columns WHERE table_schema = 'public'`,
-    publicSchemaValidator,
-  );
+  const rows = await db.client.query(fetchColumns({}));
+  const foreignKeys = await db.client.query(fetchForeignKeys({}));
+  const primaryKeys = await db.client.query(fetchPrimaryKeys({}));
+  const enumTypes = groupEnumRows(await db.client.query(fetchEnumRows({})));
 
-  const foreignKeys = await db.client.query(
-    sql`
-      SELECT
-        tc.table_name,
-        kcu.column_name,
-        ccu.table_name AS foreign_table_name,
-        ccu.column_name AS foreign_column_name
-      FROM information_schema.table_constraints AS tc
-      JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-           AND tc.table_schema = kcu.table_schema
-      JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
-      WHERE tc.constraint_type = 'FOREIGN KEY'
-      AND tc.table_schema='public'`,
-    foreignKeyValidator,
-  );
-
-  const primaryKeys = await db.client.query(
-    sql`
-      SELECT
-        tc.table_name,
-        kcu.column_name
-      FROM information_schema.table_constraints AS tc
-      JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
-           AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY'
-      AND tc.table_schema='public'`,
-    primaryKeyValidator,
-  );
-
-  const tables = parsePublicSchema(
+  const { tables, enums } = parsePublicSchema({
     rows,
     foreignKeys,
     primaryKeys,
-    schemaGenerationConfig,
-  );
+    enumTypes,
+    config: schemaGenerationConfig,
+  });
   const schemaDefinition = generateSchemaTypescript(
     tables,
+    enums,
     schemaGenerationConfig,
   );
 

@@ -1,4 +1,4 @@
-import type { PublicSchemaRow } from "./table-parser";
+import type { PublicSchemaRow } from "./metadata-queries";
 import { PiquelError, PiquelErrorCode } from "../errors";
 
 export const UNKNOWN_DATA_TYPE_ZOD_TYPE = "z.any()";

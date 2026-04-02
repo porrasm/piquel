@@ -154,6 +154,12 @@ export async function resetDb(ctx: TestDb | { pool: pg.Pool }): Promise<void> {
     for (const row of res.rows as { tablename: string }[]) {
       await ctx.pool.query(`DROP TABLE IF EXISTS "${row.tablename}" CASCADE`);
     }
+    const enumRes = await ctx.pool.query(
+      `SELECT t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE n.nspname = 'public' AND t.typtype = 'e'`,
+    );
+    for (const row of enumRes.rows as { typname: string }[]) {
+      await ctx.pool.query(`DROP TYPE IF EXISTS "${row.typname}" CASCADE`);
+    }
     await ctx.pool.end();
   }
 }

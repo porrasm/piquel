@@ -39,16 +39,16 @@ describe("generateSchemaTypescript", () => {
           },
         ],
       });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /not a valid TypeScript identifier.*first name/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/not a valid TypeScript identifier.*first name/);
     });
 
     it("throws when a table name contains whitespace", () => {
       const table = makeTable({ name: "my table" });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /not a valid TypeScript identifier.*my table/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/not a valid TypeScript identifier.*my table/);
     });
 
     it("throws when a column name starts with a number", () => {
@@ -62,16 +62,16 @@ describe("generateSchemaTypescript", () => {
           },
         ],
       });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /not a valid TypeScript identifier.*1column/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/not a valid TypeScript identifier.*1column/);
     });
 
     it("throws when a table name starts with a number", () => {
       const table = makeTable({ name: "123table" });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /not a valid TypeScript identifier.*123table/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/not a valid TypeScript identifier.*123table/);
     });
 
     it("throws when a column name contains special characters", () => {
@@ -85,9 +85,9 @@ describe("generateSchemaTypescript", () => {
           },
         ],
       });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /not a valid TypeScript identifier.*user-name/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/not a valid TypeScript identifier.*user-name/);
     });
 
     it("suggests using columnNameTransform in the error message", () => {
@@ -101,16 +101,16 @@ describe("generateSchemaTypescript", () => {
           },
         ],
       });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /columnNameTransform/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/columnNameTransform/);
     });
 
     it("suggests using tableNameTransform in the error message for invalid table names", () => {
       const table = makeTable({ name: "my table" });
-      expect(() => generateSchemaTypescript([table], defaultConfig)).toThrow(
-        /tableNameTransform/,
-      );
+      expect(() =>
+        generateSchemaTypescript([table], [], defaultConfig),
+      ).toThrow(/tableNameTransform/);
     });
 
     it("succeeds with a custom columnNameTransform that fixes whitespace", () => {
@@ -127,7 +127,7 @@ describe("generateSchemaTypescript", () => {
           },
         ],
       });
-      const result = generateSchemaTypescript([table], config);
+      const result = generateSchemaTypescript([table], [], config);
       expect(result).toContain("first_name");
     });
 
@@ -136,7 +136,7 @@ describe("generateSchemaTypescript", () => {
         tableNameTransform: (name: string) => name.replace(/\s+/g, "_"),
       });
       const table = makeTable({ name: "my table" });
-      const result = generateSchemaTypescript([table], config);
+      const result = generateSchemaTypescript([table], [], config);
       expect(result).toContain("my_table");
     });
 
@@ -153,7 +153,7 @@ describe("generateSchemaTypescript", () => {
         ],
       });
       expect(() =>
-        generateSchemaTypescript([table], defaultConfig),
+        generateSchemaTypescript([table], [], defaultConfig),
       ).not.toThrow();
     });
   });
