@@ -1,5 +1,5 @@
 import { type PoolClientLike } from "./external-types";
-import type { ClientMetadata, SQLDefinition } from "./types";
+import type { SQLDefinition } from "./types";
 import { PiquelError, PiquelErrorCode } from "../errors";
 import sqlTemplateStrings from "sql-template-strings";
 
@@ -27,7 +27,7 @@ export const runUsingTransaction = async <T>(
 interface RunSqlParams {
   client: PoolClientLike;
   sql: SQLDefinition;
-  clientMetadata: ClientMetadata;
+  releaseAfterQuery: boolean;
 }
 
 const sqlDefinitionToSqlStatement = (
@@ -43,29 +43,16 @@ const sqlDefinitionToSqlStatement = (
   );
 };
 
-const runTransactionStatement = async ({
-  client,
-  sql,
-}: RunSqlParams): Promise<{ rows: unknown[] }> => {
-  const sqlStatement = sqlDefinitionToSqlStatement(sql);
-  return client.query(sqlStatement);
-};
-
-const runNormalStatement = async ({
-  client,
-  sql,
-}: RunSqlParams): Promise<{ rows: unknown[] }> => {
-  const sqlStatement = sqlDefinitionToSqlStatement(sql);
-  try {
-    return await client.query(sqlStatement);
-  } finally {
-    client.release();
-  }
-};
-
 export const runSqlStatement = async (
   params: RunSqlParams,
-): Promise<{ rows: unknown[] }> =>
-  params.clientMetadata.type === "transaction"
-    ? runTransactionStatement(params)
-    : runNormalStatement(params);
+): Promise<{ rows: unknown[] }> => {
+  const sqlStatement = sqlDefinitionToSqlStatement(params.sql);
+  if (!params.releaseAfterQuery) {
+    return params.client.query(sqlStatement);
+  }
+  try {
+    return await params.client.query(sqlStatement);
+  } finally {
+    params.client.release();
+  }
+};

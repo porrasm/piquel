@@ -13,8 +13,6 @@ function makeClient(rows: unknown[] = []) {
 }
 
 const simpleSql = sql`SELECT 1`;
-const normalMetadata = { type: "normal" as const };
-const txMetadata = { type: "transaction" as const };
 
 describe("runSqlStatement", () => {
   describe("normal client", () => {
@@ -32,7 +30,7 @@ describe("runSqlStatement", () => {
       const runPromise = runSqlStatement({
         client,
         sql: simpleSql,
-        clientMetadata: normalMetadata,
+        releaseAfterQuery: true,
       });
 
       expect(client.release).not.toHaveBeenCalled();
@@ -47,7 +45,7 @@ describe("runSqlStatement", () => {
       await runSqlStatement({
         client,
         sql: simpleSql,
-        clientMetadata: normalMetadata,
+        releaseAfterQuery: true,
       });
       expect(client.release).toHaveBeenCalledOnce();
     });
@@ -59,7 +57,7 @@ describe("runSqlStatement", () => {
         runSqlStatement({
           client,
           sql: simpleSql,
-          clientMetadata: normalMetadata,
+          releaseAfterQuery: true,
         }),
       ).rejects.toThrow("DB error");
       expect(client.release).toHaveBeenCalledOnce();
@@ -71,7 +69,7 @@ describe("runSqlStatement", () => {
       const result = await runSqlStatement({
         client,
         sql: simpleSql,
-        clientMetadata: normalMetadata,
+        releaseAfterQuery: true,
       });
       expect(result.rows).toEqual(rows);
     });
@@ -83,7 +81,7 @@ describe("runSqlStatement", () => {
       await runSqlStatement({
         client,
         sql: simpleSql,
-        clientMetadata: txMetadata,
+        releaseAfterQuery: false,
       });
       expect(client.release).not.toHaveBeenCalled();
     });
@@ -94,7 +92,7 @@ describe("runSqlStatement", () => {
       const result = await runSqlStatement({
         client,
         sql: simpleSql,
-        clientMetadata: txMetadata,
+        releaseAfterQuery: false,
       });
       expect(result.rows).toEqual(rows);
     });

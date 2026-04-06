@@ -56,13 +56,6 @@ describe("transact", () => {
     expect(rows).toHaveLength(1); // only Alice
   });
 
-  it("client inside transaction has clientMetadata.type === 'transaction'", async () => {
-    await testDb.db.transact((client) => {
-      expect(client.clientMetadata.type).toBe("transaction");
-      return Promise.resolve();
-    });
-  });
-
   it("supports querying inside a transaction", async () => {
     const result = await testDb.db.transact(async (client) => {
       return client.queryOne(
@@ -71,9 +64,5 @@ describe("transact", () => {
       );
     });
     expect(result).toMatchObject({ name: "Alice" });
-  });
-
-  it("normal client has clientMetadata.type === 'normal'", () => {
-    expect(testDb.db.client.clientMetadata.type).toBe("normal");
   });
 });
