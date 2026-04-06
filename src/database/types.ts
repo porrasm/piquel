@@ -34,10 +34,6 @@ export type QueryParams<Args, R> =
   | [SQLDefinition, DBValidator<R>]
   | [PreparedOperation<Args, R>];
 
-export interface ClientMetadata {
-  type: "normal" | "transaction";
-}
-
 export interface DBClient {
   /**
    * Runs the query and returns all rows as an array. An empty result set yields
@@ -72,7 +68,6 @@ export interface DBClient {
    * use `query` when you need rows.
    */
   nonQuery: <Args>(...args: QueryParams<Args, void>) => Promise<void>;
-  clientMetadata: ClientMetadata;
 }
 
 export interface DbConfig {

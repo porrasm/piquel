@@ -1,10 +1,16 @@
 import { runSqlStatement, runUsingTransaction } from "./query-logic";
 import { prepareOperation } from "./operations";
-import type { ClientMetadata, DBClient, DbConfig } from "./types";
+import type { DBClient, DbConfig } from "./types";
 import type { PoolLike, PoolClientLike } from "./external-types";
 import { PiquelError, PiquelErrorCode } from "../errors";
 
-function createGetClient(
+interface ResolvedClient {
+  client: PoolClientLike;
+  releaseAfterQuery: boolean;
+}
+
+/** Always acquires a fresh client from the pool (with optional timeout). */
+function createPoolConnect(
   pool: PoolLike,
   connectionTimeoutMs: number | undefined,
 ): () => Promise<PoolClientLike> {
@@ -47,25 +53,29 @@ function createGetClient(
   };
 }
 
+function createGetClient(
+  poolConnect: () => Promise<PoolClientLike>,
+): () => Promise<ResolvedClient> {
+  return async () => {
+    return { client: await poolConnect(), releaseAfterQuery: true };
+  };
+}
+
 interface QueryParams {
-  getClient: () => Promise<PoolClientLike>;
+  getClient: () => Promise<ResolvedClient>;
   useZodValidation: boolean;
-  clientMetadata: ClientMetadata;
 }
 
 /** Implements {@link DBClient.query}. */
 const createQuery =
-  ({
-    getClient,
-    useZodValidation,
-    clientMetadata,
-  }: QueryParams): DBClient["query"] =>
+  ({ getClient, useZodValidation }: QueryParams): DBClient["query"] =>
   async (...args) => {
     const { sql, validator } = prepareOperation(...args);
+    const { client, releaseAfterQuery } = await getClient();
     const { rows } = await runSqlStatement({
-      client: await getClient(),
+      client,
       sql,
-      clientMetadata,
+      releaseAfterQuery,
     });
     // rows is unknown[] from pg driver — zod validates at runtime, or caller accepts the trust boundary
     return useZodValidation ? validator.array().parse(rows) : (rows as never);
@@ -73,17 +83,14 @@ const createQuery =
 
 /** Implements {@link DBClient.queryOneOrNone}. */
 const createQueryOneOrNone =
-  ({
-    getClient,
-    useZodValidation,
-    clientMetadata,
-  }: QueryParams): DBClient["queryOneOrNone"] =>
+  ({ getClient, useZodValidation }: QueryParams): DBClient["queryOneOrNone"] =>
   async (...args) => {
     const { sql, validator } = prepareOperation(...args);
+    const { client, releaseAfterQuery } = await getClient();
     const { rows } = await runSqlStatement({
-      client: await getClient(),
+      client,
       sql,
-      clientMetadata,
+      releaseAfterQuery,
     });
     const firstRow: unknown = rows[0];
     if (!firstRow) {
@@ -94,17 +101,14 @@ const createQueryOneOrNone =
 
 /** Implements {@link DBClient.queryOne}. */
 const createQueryOne =
-  ({
-    getClient,
-    useZodValidation,
-    clientMetadata,
-  }: QueryParams): DBClient["queryOne"] =>
+  ({ getClient, useZodValidation }: QueryParams): DBClient["queryOne"] =>
   async (...args) => {
     const { sql, validator } = prepareOperation(...args);
+    const { client, releaseAfterQuery } = await getClient();
     const { rows } = await runSqlStatement({
-      client: await getClient(),
+      client,
       sql,
-      clientMetadata,
+      releaseAfterQuery,
     });
     const firstRow: unknown = rows[0];
     if (firstRow === undefined) {
@@ -115,47 +119,38 @@ const createQueryOne =
 
 /** Implements {@link DBClient.nonQuery}. */
 const createNonQuery =
-  ({ getClient, clientMetadata }: QueryParams): DBClient["nonQuery"] =>
+  ({ getClient }: QueryParams): DBClient["nonQuery"] =>
   async (...args) => {
     const { sql } = prepareOperation(...args);
+    const { client, releaseAfterQuery } = await getClient();
     await runSqlStatement({
-      client: await getClient(),
+      client,
       sql,
-      clientMetadata,
+      releaseAfterQuery,
     });
   };
 
 const createTransact =
-  ({ getClient, useZodValidation }: QueryParams) =>
+  (poolConnect: () => Promise<PoolClientLike>, useZodValidation: boolean) =>
   async <T>(op: (client: DBClient) => Promise<T>): Promise<T> => {
-    const client = await getClient();
+    const client = await poolConnect();
 
-    const clientMetadata: ClientMetadata = {
-      type: "transaction",
+    const txGetClient = (): Promise<ResolvedClient> =>
+      Promise.resolve({ client, releaseAfterQuery: false });
+
+    const txQueryParams: QueryParams = {
+      getClient: txGetClient,
+      useZodValidation,
     };
 
     const opClient: DBClient = {
-      query: createQuery({
-        getClient: () => Promise.resolve(client),
-        useZodValidation,
-        clientMetadata,
-      }),
-      queryOneOrNone: createQueryOneOrNone({
-        getClient: () => Promise.resolve(client),
-        useZodValidation,
-        clientMetadata,
-      }),
-      queryOne: createQueryOne({
-        getClient: () => Promise.resolve(client),
-        useZodValidation,
-        clientMetadata,
-      }),
+      query: createQuery(txQueryParams),
+      queryOneOrNone: createQueryOneOrNone(txQueryParams),
+      queryOne: createQueryOne(txQueryParams),
       nonQuery: createNonQuery({
-        getClient: () => Promise.resolve(client),
+        ...txQueryParams,
         useZodValidation: false,
-        clientMetadata,
       }),
-      clientMetadata,
     };
 
     return runUsingTransaction(client, () => op(opClient));
@@ -168,14 +163,14 @@ export interface Database {
 }
 
 export const createDatabase = (config: DbConfig): Database => {
-  const clientMetadata: ClientMetadata = {
-    type: "normal",
-  };
+  const poolConnect = createPoolConnect(
+    config.pool,
+    config.connectionTimeoutMs,
+  );
 
   const queryParams: QueryParams = {
-    getClient: createGetClient(config.pool, config.connectionTimeoutMs),
+    getClient: createGetClient(poolConnect),
     useZodValidation: config.useZodValidation,
-    clientMetadata,
   };
 
   const queryClient: DBClient = {
@@ -183,12 +178,11 @@ export const createDatabase = (config: DbConfig): Database => {
     queryOneOrNone: createQueryOneOrNone(queryParams),
     queryOne: createQueryOne(queryParams),
     nonQuery: createNonQuery(queryParams),
-    clientMetadata,
   };
 
   return {
     client: queryClient,
-    transact: createTransact(queryParams),
+    transact: createTransact(poolConnect, config.useZodValidation),
     pool: config.pool,
   };
 };
