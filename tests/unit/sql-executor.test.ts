@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { runSqlStatement } from "../../src/database/sql-executor";
 import { sql } from "../../src/database/sql/sql-builder";
+import { PiquelErrorCode } from "../../src/errors";
+import type { SQLDefinition } from "../../src/database/types";
 
 function makeClient(rows: unknown[] = []) {
   return {
@@ -12,6 +14,23 @@ function makeClient(rows: unknown[] = []) {
 const simpleSql = sql`SELECT 1`;
 
 describe("runSqlStatement", () => {
+  it("throws when SQLDefinition has mismatched template parts and parameters", async () => {
+    const client = makeClient();
+    const malformed = {
+      templateSqlQuery: ["only-one-part"],
+      sqlParameters: [1],
+    };
+    await expect(
+      runSqlStatement({
+        client,
+        sql: malformed as unknown as SQLDefinition,
+        releaseAfterQuery: true,
+      }),
+    ).rejects.toMatchObject({
+      code: PiquelErrorCode.SQL_PARAMETER_COUNT_MISMATCH,
+    });
+  });
+
   describe("normal client", () => {
     it("does not release the client before an in-flight query settles", async () => {
       let resolveQuery: ((value: { rows: unknown[] }) => void) | undefined;

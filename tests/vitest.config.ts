@@ -8,5 +8,8 @@ export default defineConfig({
     hookTimeout: 60000,
     allowOnly: !process.env.CI,
     include: ["tests/**/*.test.ts"],
+    coverage: {
+      exclude: ["tests/helpers/**"],
+    },
   },
 });

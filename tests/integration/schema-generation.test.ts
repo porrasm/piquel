@@ -2,11 +2,13 @@ import {
   describe,
   it,
   expect,
+  vi,
   beforeEach,
   afterEach,
   beforeAll,
   afterAll,
 } from "vitest";
+import { execFileSync } from "child_process";
 import os from "os";
 import path from "path";
 import fs from "fs";
@@ -19,6 +21,17 @@ import {
   teardownDumpTestDb,
   type DumpTestDb,
 } from "../helpers/db";
+
+vi.mock("child_process", async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  const mod = await importOriginal<typeof import("child_process")>();
+  return {
+    ...mod,
+    execFileSync: vi.fn((...args: Parameters<typeof mod.execFileSync>) =>
+      mod.execFileSync(...args),
+    ),
+  };
+});
 
 let ctx: { pool: pg.Pool };
 
@@ -104,6 +117,24 @@ describe("runSchemaGeneration", () => {
         fs.unlinkSync(outputFile);
       }
     }
+  });
+
+  it("propagates execFileSync errors from runPrettierOnSchemaFile", async () => {
+    const outputFile = path.join(
+      os.tmpdir(),
+      `schema-prettier-${Date.now()}.ts`,
+    );
+    vi.mocked(execFileSync).mockImplementationOnce(() => {
+      throw new Error("prettier failed");
+    });
+    await expect(
+      runSchemaGeneration({
+        pool: ctx.pool,
+        outputTypescriptFile: outputFile,
+        format: true,
+      }),
+    ).rejects.toThrow("prettier failed");
+    expect(fs.existsSync(outputFile)).toBe(true);
   });
 
   it("respects custom schemaExportName config option", async () => {

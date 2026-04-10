@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { sql } from "../../src/database/sql/sql-builder";
+import {
+  combineQueryAndParameters,
+  sql,
+} from "../../src/database/sql/sql-builder";
+import type { SQLDefinition } from "../../src/database/types";
+import { PiquelErrorCode } from "../../src/errors";
 
 describe("sql builder", () => {
   describe("plain string template", () => {
@@ -63,6 +68,69 @@ describe("sql builder", () => {
       expect(outer.sqlParameters).toEqual([99]);
       expect(outer.templateSqlQuery.length).toBe(
         outer.sqlParameters.length + 1,
+      );
+    });
+  });
+
+  describe("generateSqlDefinition string branch", () => {
+    it("accepts a plain string as template query (coerced call)", () => {
+      const fn = sql as unknown as (q: string) => SQLDefinition;
+      const def = fn("SELECT 1");
+      expect(def.templateSqlQuery).toEqual(["SELECT 1"]);
+      expect(def.sqlParameters).toEqual([]);
+    });
+  });
+
+  describe("invalid template query parse", () => {
+    it("throws when the first argument is not a valid template query", () => {
+      const fn = sql as unknown as (q: unknown) => SQLDefinition;
+      expect(() => fn(123)).toThrow(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          issues: expect.arrayContaining([
+            expect.objectContaining({ message: "Invalid template query" }),
+          ]),
+        }),
+      );
+    });
+  });
+
+  describe("combineQueryAndParameters mismatch", () => {
+    it("throws when template parts and parameter counts do not match", () => {
+      const fn = sql as unknown as (
+        parts: TemplateStringsArray,
+        ...params: unknown[]
+      ) => SQLDefinition;
+      const onePart = Object.assign(["only"], {
+        raw: ["only"],
+      }) as TemplateStringsArray;
+      expect(() => fn(onePart, 1)).toThrow(
+        expect.objectContaining({
+          code: PiquelErrorCode.SQL_PARAMETER_COUNT_MISMATCH,
+        }),
+      );
+    });
+  });
+
+  describe("nested SQLDefinition edge cases", () => {
+    it("throws UNDEFINED_SQL_PARAMETER when a nested definition has undefined in sqlParameters", () => {
+      const nested: SQLDefinition = {
+        templateSqlQuery: ["x", ""],
+        sqlParameters: [undefined],
+      };
+      expect(() => sql`outer ${nested}`).toThrow(
+        expect.objectContaining({
+          code: PiquelErrorCode.UNDEFINED_SQL_PARAMETER,
+        }),
+      );
+    });
+
+    it("throws TEMPLATE_SQL_UNDEFINED when a template part is undefined (test helper bypasses Zod)", () => {
+      const parts = ["a", undefined] as unknown as string[];
+      expect(() => combineQueryAndParameters(parts, [1])).toThrow(
+        expect.objectContaining({
+          code: PiquelErrorCode.TEMPLATE_SQL_UNDEFINED,
+        }),
       );
     });
   });

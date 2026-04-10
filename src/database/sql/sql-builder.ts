@@ -78,7 +78,11 @@ class SqlDefinitionBuilder {
   }
 }
 
-const combineQueryAndParameters = (
+/**
+ * @internal Exported to test builder validation without Zod preprocessing
+ * of nested definitions (e.g. undefined template parts).
+ */
+export const combineQueryAndParameters = (
   templateQueryParts: string[],
   sqlParameters: SqlParameter[],
 ): SQLDefinition => {
