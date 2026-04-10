@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { createGetClient, createPoolConnect } from "../../src/database/db-client";
+import {
+  createGetClient,
+  createPoolConnect,
+} from "../../src/database/db-client";
 import { runInTransactionContext } from "../../src/database/transaction-context";
 import { PiquelErrorCode } from "../../src/errors";
 
