@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-extraneous-class */
 import { describe, it, expect } from "vitest";
 import {
   combineQueryAndParameters,
   sql,
+  unsafeParam,
 } from "../../src/database/sql/sql-builder";
 import type { SQLDefinition } from "../../src/database/types";
 import { PiquelErrorCode } from "../../src/errors";
@@ -151,6 +153,60 @@ describe("sql builder", () => {
       const d = new Date("2024-01-01");
       const result = sql`SELECT ${d}`;
       expect(result.sqlParameters).toEqual([d]);
+    });
+
+    it("accepts Date[] as a valid SQL parameter", () => {
+      const dates = [new Date("2024-01-01"), new Date("2024-06-15")];
+      const result = sql`SELECT ${dates}`;
+      expect(result.sqlParameters).toEqual([dates]);
+    });
+
+    it("accepts bigint as a valid SQL parameter", () => {
+      const id = 9007199254740993n;
+      const result = sql`SELECT ${id}`;
+      expect(result.sqlParameters).toEqual([id]);
+    });
+
+    it("accepts Uint8Array as a valid SQL parameter", () => {
+      const buf = new Uint8Array([1, 2, 3]);
+      const result = sql`SELECT ${buf}`;
+      expect(result.sqlParameters).toEqual([buf]);
+    });
+
+    it("accepts Buffer (extends Uint8Array) as a valid SQL parameter", () => {
+      const buf = Buffer.from("hello");
+      const result = sql`SELECT ${buf}`;
+      expect(result.sqlParameters).toEqual([buf]);
+    });
+
+    it("throws for a plain object with prototype (custom class instance)", () => {
+      class Custom {}
+      const obj = new Custom();
+      expect(() => sql`SELECT ${obj as unknown as number}`).toThrow();
+    });
+
+    it("unsafeParam allows any value through", () => {
+      class Custom {
+        public x = 42;
+      }
+      const obj = new Custom();
+      const result = sql`SELECT ${unsafeParam(obj)}`;
+      expect(result.sqlParameters[0]).toBe(obj);
+    });
+
+    it("unsafeParam stores a function without validation", () => {
+      const fn = () => "noop";
+      const result = sql`SELECT ${unsafeParam(fn)}`;
+      expect(result.sqlParameters[0]).toBe(fn);
+    });
+
+    it("mixes standard and unsafeParam in same query", () => {
+      class Custom {}
+      const obj = new Custom();
+      const result = sql`SELECT ${42}, ${unsafeParam(obj)}`;
+      expect(result.sqlParameters).toHaveLength(2);
+      expect(result.sqlParameters[0]).toBe(42);
+      expect(result.sqlParameters[1]).toBe(obj);
     });
   });
 });

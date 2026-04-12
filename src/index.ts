@@ -17,6 +17,18 @@ export type { PoolLike, PoolClientLike } from "./database/external-types";
 export { sql } from "./database/sql/sql-builder";
 
 /**
+ * Wraps a value to bypass `sql`'s runtime parameter type validation for a
+ * single parameter. The value is still sent as a bound parameter — not
+ * interpolated into the SQL string — so there is no SQL injection risk.
+ *
+ * Use this when you need to pass a custom type (e.g. a driver-specific class)
+ * that is not in Piquel's default parameter whitelist. For a full description
+ * and examples, see the {@link unsafeParam} function documentation.
+ */
+export { unsafeParam } from "./database/sql/sql-builder";
+export type { UnsafeParam } from "./database/sql/sql-builder";
+
+/**
  * Creates a reusable operation that pairs SQL preparation with a Zod validator.
  */
 export { createOperation } from "./database/operations";
