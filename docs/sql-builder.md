@@ -26,11 +26,32 @@ The `sql` template accepts:
 
 - `string`, `number`, `boolean`
 - `null` (maps to SQL `NULL`)
+- `bigint` (maps to PostgreSQL `int8`/`bigserial`)
+- `Uint8Array` / `Buffer` (maps to PostgreSQL `bytea`)
 - `Date`
-- Arrays and objects of primitives (serialized by the driver, useful for `jsonb`)
+- Arrays and records of the above primitives (serialized by the driver, useful for `jsonb`)
 - Another `SQLDefinition` (nested composition — see below)
 
 `undefined` is **not** accepted and throws a `PiquelError` with code `UNDEFINED_SQL_PARAMETER` at runtime. This prevents accidental silent bugs where a missing value would be interpolated as `NULL`.
+
+## `unsafeParam` — escape hatch for custom types
+
+If you need to pass a value whose type is not in the whitelist above — for example a custom class instance that your database driver knows how to serialize — wrap it with `unsafeParam`:
+
+```ts
+import { sql, unsafeParam } from "piquel";
+
+const point = new PgPoint(1.5, 2.0); // not in the default whitelist
+const query = sql`INSERT INTO locations (pos) VALUES (${unsafeParam(point)})`;
+```
+
+`unsafeParam` skips Piquel's runtime type check but **does not enable SQL injection**. The value is still passed to the driver as a bound parameter (`$1`, `$2`, …), never concatenated into the SQL string.
+
+Standard and unsafe params can be mixed freely in the same template:
+
+```ts
+sql`UPDATE t SET a = ${standardValue}, b = ${unsafeParam(customValue)}`;
+```
 
 ## Nested composition
 

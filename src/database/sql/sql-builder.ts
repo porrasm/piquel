@@ -1,5 +1,50 @@
 import type { SqlParameter, SQLDefinition, TemplateQuery } from "../types";
 import { PiquelError, PiquelErrorCode } from "../../errors";
+import {
+  sqlDefinitionSchema,
+  sqlParameterSchema,
+  templateQuerySchema,
+} from "./sql-schema";
+
+export const unsafeParamBrand = Symbol("piquel.unsafeParam");
+
+/** Represents a SQL parameter that bypasses runtime type validation. See {@link unsafeParam}. */
+export interface UnsafeParam {
+  readonly [unsafeParamBrand]: true;
+  readonly value: unknown;
+}
+
+const isUnsafeParam = (v: unknown): v is UnsafeParam =>
+  typeof v === "object" && v !== null && unsafeParamBrand in v;
+
+/**
+ * Wraps a value to bypass `sql`'s runtime parameter validation.
+ *
+ * By default, `sql` only accepts a defined set of types (strings, numbers,
+ * booleans, null, bigint, Uint8Array/Buffer, Date, arrays and records of
+ * those, and nested `SQLDefinition`s). If you need to pass a value whose
+ * type is not in this list — for example a custom class instance that your
+ * database driver knows how to serialize — wrap it with `unsafeParam`.
+ *
+ * **Safety:** `unsafeParam` does NOT enable SQL injection. The wrapped value
+ * is still sent to the driver as a bound parameter (`$1`, `$2`, …), never
+ * concatenated into the SQL string. Only Piquel's own type-check is skipped.
+ *
+ * @example
+ * // Custom pg type that the driver handles natively
+ * import { sql, unsafeParam } from "piquel";
+ *
+ * const point = new PgPoint(1.5, 2.0); // not in the default whitelist
+ * const query = sql`INSERT INTO locations (pos) VALUES (${unsafeParam(point)})`;
+ *
+ * @example
+ * // Mixing standard and unsafe params in one query
+ * sql`UPDATE t SET a = ${standardValue}, b = ${unsafeParam(customValue)}`;
+ */
+export const unsafeParam = (value: unknown): UnsafeParam => ({
+  [unsafeParamBrand]: true,
+  value,
+});
 
 const assertDefined = <T>(
   value: T | undefined | null,
@@ -11,16 +56,11 @@ const assertDefined = <T>(
   }
   return value;
 };
-import {
-  sqlDefinitionSchema,
-  sqlParameterSchema,
-  templateQuerySchema,
-} from "./sql-schema";
 
 class SqlDefinitionBuilder {
   private previousQueryParts: string[];
   private currentQueryPart: string;
-  private sqlParameters: SqlParameter[];
+  private sqlParameters: unknown[];
 
   public constructor() {
     this.previousQueryParts = [];
@@ -54,6 +94,11 @@ class SqlDefinitionBuilder {
         throw new PiquelError(PiquelErrorCode.UNDEFINED_SQL_PARAMETER);
       }
 
+      if (isUnsafeParam(parameter)) {
+        this.appendRawParameter(parameter.value);
+        continue;
+      }
+
       const subQueryParameter = sqlDefinitionSchema.safeParse(parameter);
 
       if (subQueryParameter.success) {
@@ -65,9 +110,13 @@ class SqlDefinitionBuilder {
   }
 
   public appendSqlParameter(sqlParameter: SqlParameter): void {
+    this.appendRawParameter(sqlParameter);
+  }
+
+  public appendRawParameter(value: unknown): void {
     this.previousQueryParts.push(this.currentQueryPart);
     this.currentQueryPart = "";
-    this.sqlParameters.push(sqlParameter);
+    this.sqlParameters.push(value);
   }
 
   public build(): SQLDefinition {
@@ -84,7 +133,7 @@ class SqlDefinitionBuilder {
  */
 export const combineQueryAndParameters = (
   templateQueryParts: string[],
-  sqlParameters: SqlParameter[],
+  sqlParameters: (SqlParameter | UnsafeParam)[],
 ): SQLDefinition => {
   if (templateQueryParts.length !== sqlParameters.length + 1) {
     throw new PiquelError(PiquelErrorCode.SQL_PARAMETER_COUNT_MISMATCH);
@@ -101,7 +150,7 @@ export const combineQueryAndParameters = (
 
 const generateSqlDefinition = (
   templateQuery: TemplateQuery,
-  sqlParameters: SqlParameter[],
+  sqlParameters: (SqlParameter | UnsafeParam)[],
 ): SQLDefinition => {
   if (typeof templateQuery === "string") {
     return {
@@ -116,7 +165,7 @@ const generateSqlDefinition = (
 /** Creates a SQL definition from a template query and SQL parameters. */
 export const sql = (
   templateQueryRaw: TemplateStringsArray,
-  ...sqlParametersRaw: SqlParameter[]
+  ...sqlParametersRaw: (SqlParameter | UnsafeParam)[]
 ): SQLDefinition => {
   const templateQuery = templateQuerySchema.parse(templateQueryRaw, {
     error: (error) => {
@@ -128,15 +177,25 @@ export const sql = (
       };
     },
   });
-  const sqlParameters = sqlParameterSchema.array().parse(sqlParametersRaw, {
-    error: (error) => {
-      return {
-        message: "Invalid SQL parameters",
-        path: [],
-        code: "invalid_sql_parameters",
-        cause: error,
-      };
+
+  // Validate non-unsafe parameters eagerly; unsafe params pass through as-is
+  const sqlParameters: (SqlParameter | UnsafeParam)[] = sqlParametersRaw.map(
+    (p) => {
+      if (isUnsafeParam(p)) {
+        return p;
+      }
+      return sqlParameterSchema.parse(p, {
+        error: (error) => {
+          return {
+            message: "Invalid SQL parameters",
+            path: [],
+            code: "invalid_sql_parameters",
+            cause: error,
+          };
+        },
+      });
     },
-  });
+  );
+
   return generateSqlDefinition(templateQuery, sqlParameters);
 };

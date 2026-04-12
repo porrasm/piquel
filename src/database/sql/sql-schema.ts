@@ -12,16 +12,18 @@ const jsonPropertyTypeSchema = z.union([
   z.number(),
   z.boolean(),
   z.null(),
+  z.bigint(),
+  z.instanceof(Uint8Array),
+  z.date(),
 ]);
 
-const jsonPropertySchema = z.union([
+const jsonValueSchema = z.union([
   jsonPropertyTypeSchema,
   z.array(jsonPropertyTypeSchema),
   z.record(z.string(), jsonPropertyTypeSchema),
 ]);
 
 export const sqlParameterSchema = z.union([
-  jsonPropertySchema,
+  jsonValueSchema,
   sqlDefinitionSchema,
-  z.date(),
 ]);
